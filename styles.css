@@ -275,7 +275,7 @@ header h1 {
     text-align: center;
     font-size: 15px;
     font-weight: 600;
-    animation: slideIn 1.3s ease-out;
+    animation: slideIn 5.3s ease-out;
     flex-shrink: 0;
 }
 
