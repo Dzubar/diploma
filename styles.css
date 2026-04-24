@@ -641,25 +641,3 @@ header h1 {
         gap: 28px;
     }
 }
-/* === Авторизация и кнопка выхода === */
-.user-tag {
-    display: inline-block;
-    background: rgba(255,255,255,0.25);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    margin-left: 5px;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.danger-btn {
-    background: #fff5f5;
-    border: 2px solid #fc8181;
-    color: #c53030;
-}
-
-.danger-btn:active {
-    background: #fed7d7;
-    transform: scale(0.98);
-}
