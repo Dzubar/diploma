@@ -723,7 +723,7 @@ function checkPointPlacement(pos) {
         setTimeout(() => {
             clearCanvas();
             drawExerciseTemplate(currentExercise);
-        }, 1000);
+        }, 1500);
     }
 }
 
@@ -811,7 +811,7 @@ function showErrorFeedback() {
     
     setTimeout(() => {
         feedback.classList.add('hidden');
-    }, 2000);
+    }, 1500);
 }
 
 // Рисование
@@ -1132,7 +1132,7 @@ function completeMirrorTree() {
     
     setTimeout(() => {
         nextExercise();
-    }, 2000);
+    }, 1500);
 }
 
 // Вибрация устройства
@@ -1427,7 +1427,7 @@ function drawPathWithCheck(pos) {
                 userPath = [];
                 exitCount = 0;
                 isOutOfBounds = false;
-            }, 1000);
+            }, 1500);
         }
         return;
     }
@@ -1868,7 +1868,7 @@ function completePathExercise() {
                         userPath = [];
                         exitCount = 0;
                         isOutOfBounds = false;
-                    }, 1000);
+                    }, 1500);
                 }
             }
         } else {
@@ -4686,7 +4686,7 @@ function showGridMountainError() {
     setTimeout(() => {
         resetGridExercise();
         feedback.classList.add('hidden');
-    }, 2000);
+    }, 1500);
 }
 
 // Показ ошибки
