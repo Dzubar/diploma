@@ -271,25 +271,34 @@ header h1 {
 .feedback {
     background: #4caf50;
     color: white;
-    padding: 12px;
+    padding: 15px;
     text-align: center;
     font-size: 15px;
     font-weight: 600;
     animation: slideIn 0.3s ease-out;
-    flex-shrink: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 200px;
+    max-width: 80%;
 }
 
 .feedback.error {
     background: #ff9800;
 }
 
+/* Анимация появления */
 @keyframes slideIn {
     from {
-        transform: translateY(-100%);
+        transform: translate(-50%, -40%);
         opacity: 0;
     }
     to {
-        transform: translateY(0);
+        transform: translate(-50%, -50%);
         opacity: 1;
     }
 }
