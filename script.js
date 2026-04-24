@@ -356,15 +356,28 @@ function exitExercise() {
 
 // Обновление отображения результатов
 function updateResultsDisplay() {
-    const accuracy = stats.totalExercises > 0 ? 
-        Math.round((stats.successfulExercises / stats.totalExercises) * 100) : 0;
-    const avgTime = stats.successfulExercises > 0 ? 
-        Math.round(stats.totalTime / stats.successfulExercises / 1000) : 0;
-    
-    document.getElementById('total-exercises').textContent = stats.totalExercises;
-    document.getElementById('successful-exercises').textContent = stats.successfulExercises;
-    document.getElementById('accuracy').textContent = accuracy + '%';
-    document.getElementById('average-time').textContent = avgTime + ' сек';
+  // Безопасное получение данных
+  const total = stats.totalExercises || 0;
+  const successful = stats.successfulExercises || 0;
+  const totalTimeMs = stats.totalTime || 0; //Вегда в миллисекундах
+
+  // Расчёт метрик с защитой от деления на 0
+  const accuracy = total > 0 ? Math.round((successful / total) * 100) : 0;
+  const avgTimeSec = successful > 0 ? Math.round(totalTimeMs / successful / 1000) : 0;
+
+  // Обновление DOM с проверкой существования элементов
+  const totalEl = document.getElementById('total-exercises');
+  if (totalEl) totalEl.textContent = total;
+
+  const rateEl = document.getElementById('success-rate'); //Исправленный ID
+  if (rateEl) rateEl.textContent = accuracy + '%';
+
+  const timeEl = document.getElementById('avg-time');     //Исправленный ID
+  if (timeEl) timeEl.textContent = avgTimeSec + ' сек';
+
+  // Прогресс-бар (если есть в вёрстке)
+  const progressEl = document.getElementById('progress-fill');
+  if (progressEl) progressEl.style.width = accuracy + '%';
 }
 
 // Сброс статистики
@@ -4141,11 +4154,11 @@ function completePatternDotsExercise() {
     
     // Обновляем статистику
     const endTime = Date.now();
-    const timeTaken = (endTime - startTime) / 1000;
+    //const timeTaken = (endTime - startTime) / 1000;
     stats.successfulExercises++;
-    stats.totalTime += timeTaken;
+    stats.totalTime += (endTime - startTime); // Оставляем в миллисекундах
     saveStats();
-}
+    }
 
 // Остальные шаблоны (для других модулей)
 function drawLineGuide() {
