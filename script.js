@@ -13,6 +13,12 @@ let stats = {
     successfulExercises: 0,
     totalTime: 0
 };
+// Ключи хранилища и текущий пользователь
+const STORAGE_KEYS = {
+    USER_NAME: 'logoped_userName',
+    USER_ID: 'logoped_userId'
+};
+let currentUser = null;
 
 // Переменные для модуля 2 (Дорожки)
 let pathPoints = []; // Точки центральной траектории
@@ -60,6 +66,45 @@ let dotRadius = 8; // Радиус точки в пикселях
 let dotTolerance = 15; // Допуск для попадания в точку (пиксели)
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
+// Инициализация пользователя (первый вход / повторный)
+function initUser() {
+    const savedName = localStorage.getItem(STORAGE_KEYS.USER_NAME);
+    const savedId = localStorage.getItem(STORAGE_KEYS.USER_ID);
+    
+    if (!savedName || !savedId) {
+        // Первый вход: запрашиваем имя
+        let name = prompt('👋 Добро пожаловать! Пожалуйста, введите ваше имя:');
+        if (!name || !name.trim()) name = 'Гость';
+        
+        currentUser = { 
+            name: name.trim(), 
+            id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2) 
+        };
+        localStorage.setItem(STORAGE_KEYS.USER_NAME, currentUser.name);
+        localStorage.setItem(STORAGE_KEYS.USER_ID, currentUser.id);
+    } else {
+        // Повторный вход: восстанавливаем из хранилища
+        currentUser = { name: savedName, id: savedId };
+    }
+    updateUserNameUI();
+}
+
+// Обновление отображения имени в интерфейсе
+function updateUserNameUI() {
+    const tag = document.getElementById('user-name-tag');
+    if (tag && currentUser) {
+        tag.textContent = `👤 ${currentUser.name}`;
+    }
+}
+
+// Выход и полная очистка данных
+function logoutAndClearData() {
+    if (confirm('⚠️ Вы уверены? Все данные, включая статистику и имя, будут удалены.')) {
+        localStorage.clear(); // Удаляет ВСЕ ключи этого домена
+        location.reload();    // Перезагружает страницу для сброса состояния
+    }
+}
+
 // Загрузка статистики из localStorage
 function loadStats() {
     const saved = localStorage.getItem('graphomotorStats');
@@ -75,7 +120,8 @@ function saveStats() {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    loadStats();
+initUser(); //ДОБАВЛЕНО: инициализация пользователя
+loadStats();
     // Не инициализируем canvas сразу, только когда он понадобится
 });
 
