@@ -716,14 +716,12 @@ function checkPointPlacement(pos) {
         }, 1500);
     } else {
         // Промах
-        drawErrorPoint(pos);
-        showErrorFeedback();
-        
-        // Убираем красную точку через 1 секунду
-        setTimeout(() => {
+drawErrorPoint(pos);
+    showErrorFeedback();
+    setTimeout(() => {
             clearCanvas();
             drawExerciseTemplate(currentExercise);
-        }, 1500);
+        }, 1000); // Ошибку можно убирать быстрее (1 сек)
     }
 }
 
@@ -1119,20 +1117,19 @@ function showMirrorFeedback(message) {
 
 // Завершение упражнения
 function completeMirrorTree() {
-    exerciseCompleted = true;
-    isDrawing = false;
-    
-    const feedback = document.getElementById('feedback');
-    feedback.textContent = '🎉 Ты нарисовал красивую елочку!';
-    feedback.className = 'feedback';
-    feedback.classList.remove('hidden');
-    
-    // Показываем кнопку "Дальше"
-    document.getElementById('next-level-btn').classList.remove('hidden');
-    
-    setTimeout(() => {
-        nextExercise();
-    }, 1500);
+        exerciseCompleted = true;
+        isDrawing = false;
+        const feedback = document.getElementById('feedback');
+        feedback.textContent = '🎉 Ты нарисовал красивую елочку!';
+        feedback.className = 'feedback';
+        feedback.classList.remove('hidden');
+        
+        document.getElementById('next-level-btn').classList.remove('hidden');
+        
+        //Исправлено с 2000 на 1500
+        setTimeout(() => {
+            nextExercise();
+        }, 1500);
 }
 
 // Вибрация устройства
@@ -1833,44 +1830,58 @@ function completePathExercise() {
                 }
             }
             
-            if (completedLine !== -1) {
-                // Отмечаем линию как завершенную
-                completedSubTasks.push(completedLine);
-                
-                const feedback = document.getElementById('feedback');
-                
-                // Проверяем, все ли линии завершены
-                if (completedSubTasks.length >= totalSubTasks) {
-                    // Все линии завершены - переход к следующему упражнению
-                    exerciseCompleted = true;
-                    isDrawing = false;
-                    
-                    feedback.textContent = `🎉 Идеально! Все ${totalSubTasks} линии выполнены!`;
-                    feedback.className = 'feedback';
-                    feedback.classList.remove('hidden');
-                    
-                    // Автоматический переход к следующему упражнению
-                    setTimeout(() => {
-                        nextExercise();
-                    }, 1500);
+                if (completedLine !== -1) {
+                        completedSubTasks.push(completedLine);
+                        const feedback = document.getElementById('feedback');
+                        
+                        if (completedSubTasks.length >= totalSubTasks) {
+                            //ФИНАЛЬНОЕ ЗАВЕРШЕНИЕ ВСЕГО УПРАЖНЕНИЯ
+                            exerciseCompleted = true;
+                            isDrawing = false;
+                            feedback.textContent = `🎉 Идеально! Все ${totalSubTasks} линии выполнены!`;
+                            feedback.className = 'feedback';
+                            feedback.classList.remove('hidden');
+                            
+                            //Строго 1.5 секунды перед переходом
+                            setTimeout(() => {
+                                nextExercise();
+                            }, 1500);
+                        } else {
+                            //ПРОМЕЖУТОЧНАЯ ПОХВАЛА (между подзадачами)
+                            feedback.textContent = `✓ Отлично! Линия ${completedSubTasks.length} из ${totalSubTasks}. Проведи остальные!`;
+                            feedback.className = 'feedback';
+                            feedback.classList.remove('hidden');
+                            
+                            //Тоже 1.5 секунды перед очисткой холста
+                            setTimeout(() => {
+                                clearCanvas();
+                                drawExerciseTemplate(currentExercise);
+                                feedback.classList.add('hidden');
+                                userPath = [];
+                                exitCount = 0;
+                                isOutOfBounds = false;
+                            }, 1500);
+                        }
+                    }
                 } else {
-                    // Еще есть незавершенные линии
-                    feedback.textContent = `✓ Отлично! Линия ${completedSubTasks.length} из ${totalSubTasks}. Проведи остальные!`;
-                    feedback.className = 'feedback';
+                    //ОШИБКА (выходы за границы)
+                    isDrawing = false;
+                    const feedback = document.getElementById('feedback');
+                    feedback.textContent = currentExercise?.type === 'path-spiral' 
+                        ? `⚠️ Слишком много касаний границ (${exitCount}/3). Попробуй аккуратнее!` 
+                        : '⚠️ Были выходы за границы. Попробуй еще раз!';
+                    feedback.className = 'feedback error';
                     feedback.classList.remove('hidden');
                     
-                    // Через 1 секунду перерисовываем
                     setTimeout(() => {
                         clearCanvas();
                         drawExerciseTemplate(currentExercise);
                         feedback.classList.add('hidden');
-                        // Обнуляем состояние для новой линии
                         userPath = [];
                         exitCount = 0;
                         isOutOfBounds = false;
                     }, 1500);
                 }
-            }
         } else {
             // Обычное упражнение без подзадач
             exerciseCompleted = true;
