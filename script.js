@@ -175,11 +175,43 @@ function hideAllScreens() {
     document.getElementById('info-screen').classList.add('hidden');
 }
 
-// Начать занятие (автоматический набор упражнений)
+// Начать занятие (случайный набор из 8 упражнений)
 function startLesson() {
-    const lessonModules = [1, 2, 4, 7]; // Разминка, траектории, серийность, самоконтроль
-    currentModule = lessonModules[0];
-    loadModule(currentModule);
+    const lessonExercises = [];
+
+    // Проходим по всем 8 модулям (от 1 до 8)
+    for (let i = 1; i <= 8; i++) {
+        // Получаем все упражнения этого модуля
+        const exercises = getModuleExercises(i);
+        
+        // Если упражнения есть, выбираем случайное
+        if (exercises && exercises.length > 0) {
+            const randomIndex = Math.floor(Math.random() * exercises.length);
+            lessonExercises.push(exercises[randomIndex]);
+        }
+    }
+
+    // Устанавливаем глобальные переменные для "смешанного" занятия
+    currentModule = 0; // 0 означает, что это не конкретный модуль, а микс
+    moduleExercises = lessonExercises;
+    currentExerciseIndex = 0;
+
+    // Инициализация экрана упражнения (аналогично loadModule)
+    hideAllScreens();
+    document.getElementById('exercise-screen').classList.remove('hidden');
+
+    // Небольшая задержка для корректного отображения canvas
+    setTimeout(() => {
+        if (!canvas) {
+            initCanvas();
+        } else {
+            resizeCanvas();
+        }
+        
+        currentExercise = moduleExercises[currentExerciseIndex];
+        displayExercise(currentExercise);
+        startTime = Date.now();
+    }, 100);
 }
 
 // Загрузка модуля
