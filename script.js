@@ -1898,9 +1898,7 @@ function completePathExercise() {
                 } else {
                     feedback.textContent = `✅ Отлично! ${exitCount} касаний границ (до 3 разрешено)`;
                 }
-            } else {
-                feedback.textContent = '🎉 Идеально! Переход к следующему уровню!';
-            }
+            
             
             feedback.className = 'feedback';
             feedback.classList.remove('hidden');
