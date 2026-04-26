@@ -3783,7 +3783,7 @@ function drawMirrorTreeTemplate() {
     // ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
     // ============================================
     if (mirrorTreeSegments.length > 0) {
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = '#005000';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
