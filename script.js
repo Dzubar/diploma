@@ -3803,17 +3803,15 @@ function drawMirrorTreeTemplate() {
     }
     
     // ============================================
-    // ПРАВАЯ ЧАСТЬ: ТОЛЬКО ЗАВЕРШЕННЫЕ СЕГМЕНТЫ
-    // Невидимые сегменты НЕ отрисовываются вообще
-    // ============================================
-    // ============================================
-    // ПРАВАЯ ЧАСТЬ: НАПРАВЛЯЮЩИЕ + ЗАВЕРШЕННЫЕ СЕГМЕНТЫ
+    // ПРАВАЯ ЧАСТЬ: ПУНКТИРНЫЕ ПОДСКАЗКИ + ЗАВЕРШЕННЫЕ СЕГМЕНТЫ
     // ============================================
     if (mirrorTreeTargets.length > 0) {
-        // Сначала рисуем полупрозрачные пунктирные направляющие
-        ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; // Полупрозрачный синий
+        // Сначала рисуем едва заметные пунктирные подсказки для ВСЕХ сегментов
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)'; // Очень бледный черный (15% прозрачности)
         ctx.lineWidth = 2;
-        ctx.setLineDash([8, 8]); // Пунктир
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([8, 6]); // Пунктир: 8px линия, 6px пробел
         
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
@@ -3827,13 +3825,12 @@ function drawMirrorTreeTemplate() {
             ctx.lineTo(x2, y2);
             ctx.stroke();
         }
+        
         ctx.setLineDash([]); // Сброс пунктира
         
-        // Затем рисуем завершенные сегменты ярким синим
+        // Затем рисуем завершенные сегменты ярким синим (поверх подсказок)
         ctx.strokeStyle = '#2196f3';
         ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
         
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
