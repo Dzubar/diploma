@@ -973,52 +973,33 @@ function drawMirrorTreeWithCheck(pos) {
         const x2 = centerPixelX + seg.x2 * gridCellSize;
         const y2 = gridOffsetY + seg.y2 * gridCellSize;
         
-        // Проверяем расстояние до линии сегмента
-        const distance = distanceToSegment(pos, seg, centerPixelX);
-        
-        if (distance <= treePathTolerance) {
-            isOnSegment = true;
-            
-            // Проверяем, прошли ли мы через начальную точку
-            const distToStart = Math.sqrt(Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2));
-            if (distToStart <= pointTolerance) {
-                segmentStartPoints[i] = true;
-            }
-            
-            // Проверяем, прошли ли мы через конечную точку
-            const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
-            if (distToEnd <= pointTolerance) {
-                segmentEndPoints[i] = true;
-            }
-            
-          /*  // Если прошли через обе точки - сегмент завершен
-            if (segmentStartPoints[i] && segmentEndPoints[i]) {
-                if (!seg.isCompleted) {
-                    seg.isCompleted = true;
-                    
-                    // Перерисовываем холст с новым активированным сегментом
-                    clearCanvas();
-                    drawMirrorTreeTemplate();
-                    
-                    // Проверяем, завершен ли текущий этап
-                    checkMirrorSubTaskCompletion();
-                }
-            } */
-                        // Упрощенная проверка: если пользователь прошел достаточно близко к сегменту и приблизился к конечной точке - засчитываем
-            const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
-            if (distToEnd <= pointTolerance && distance <= treePathTolerance) {
-                if (!seg.isCompleted) {
-                    seg.isCompleted = true;
-                    
-                    // Перерисовываем холст с новым активированным сегментом
-                    clearCanvas();
-                    drawMirrorTreeTemplate();
-                    
-                    // Проверяем, завершен ли текущий этап
-                    checkMirrorSubTaskCompletion();
-                }
-            }
+// Проверяем расстояние до линии сегмента
+const distance = distanceToSegment(pos, seg, centerPixelX);
+
+if (distance <= treePathTolerance) {
+    isOnSegment = true;
+    
+    // Проверяем, прошли ли мы через начальную точку
+    const distToStart = Math.sqrt(Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2));
+    if (distToStart <= pointTolerance) {
+        segmentStartPoints[i] = true;
+    }
+    
+    // Проверяем, прошли ли мы через конечную точку (distToEnd уже объявлен выше)
+    if (distToEnd <= pointTolerance) {
+        segmentEndPoints[i] = true;
+    }
+    
+    // Если прошли через обе точки - сегмент завершен
+    if (segmentStartPoints[i] && segmentEndPoints[i]) {
+        if (!seg.isCompleted) {
+            seg.isCompleted = true;
+            clearCanvas();
+            drawMirrorTreeTemplate();
+            checkMirrorSubTaskCompletion();
         }
+    }
+}
     }
     
     // Рисуем линию обратной связи
