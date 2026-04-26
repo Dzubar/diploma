@@ -49,11 +49,11 @@ let gridOffsetY = 0; // Смещение сетки по Y
 let mirrorTreeSegments = []; // Массив сегментов елочки (левый образец)
 let mirrorTreeTargets = []; // Массив целевых сегментов (правая сторона, зеркальное отражение)
 let completedSegments = []; // Индексы завершенных сегментов
-let treePathTolerance = 20; // Допуск для попадания в траекторию (в пикселях)
+let treePathTolerance = 35; // Допуск для попадания в траекторию (в пикселях)
 let userDrawnPoints = []; // Точки, нарисованные пользователем
 let segmentStartPoints = []; // Отслеживание прохождения через начальную точку каждого сегмента
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
-let pointTolerance = 25; // Допуск для попадания в контрольную точку (пиксели)
+let pointTolerance = 35; // Допуск для попадания в контрольную точку (пиксели)
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -991,8 +991,22 @@ function drawMirrorTreeWithCheck(pos) {
                 segmentEndPoints[i] = true;
             }
             
-            // Если прошли через обе точки - сегмент завершен
+          /*  // Если прошли через обе точки - сегмент завершен
             if (segmentStartPoints[i] && segmentEndPoints[i]) {
+                if (!seg.isCompleted) {
+                    seg.isCompleted = true;
+                    
+                    // Перерисовываем холст с новым активированным сегментом
+                    clearCanvas();
+                    drawMirrorTreeTemplate();
+                    
+                    // Проверяем, завершен ли текущий этап
+                    checkMirrorSubTaskCompletion();
+                }
+            } */
+                        // Упрощенная проверка: если пользователь прошел достаточно близко к сегменту и приблизился к конечной точке - засчитываем
+            const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
+            if (distToEnd <= pointTolerance && distance <= treePathTolerance) {
                 if (!seg.isCompleted) {
                     seg.isCompleted = true;
                     
@@ -3810,7 +3824,30 @@ function drawMirrorTreeTemplate() {
     // ПРАВАЯ ЧАСТЬ: ТОЛЬКО ЗАВЕРШЕННЫЕ СЕГМЕНТЫ
     // Невидимые сегменты НЕ отрисовываются вообще
     // ============================================
+    // ============================================
+    // ПРАВАЯ ЧАСТЬ: НАПРАВЛЯЮЩИЕ + ЗАВЕРШЕННЫЕ СЕГМЕНТЫ
+    // ============================================
     if (mirrorTreeTargets.length > 0) {
+        // Сначала рисуем полупрозрачные пунктирные направляющие
+        ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; // Полупрозрачный синий
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]); // Пунктир
+        
+        for (let i = 0; i < mirrorTreeTargets.length; i++) {
+            const seg = mirrorTreeTargets[i];
+            const x1 = centerPixelX + seg.x1 * gridCellSize;
+            const y1 = gridOffsetY + seg.y1 * gridCellSize;
+            const x2 = centerPixelX + seg.x2 * gridCellSize;
+            const y2 = gridOffsetY + seg.y2 * gridCellSize;
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]); // Сброс пунктира
+        
+        // Затем рисуем завершенные сегменты ярким синим
         ctx.strokeStyle = '#2196f3';
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
@@ -3819,7 +3856,6 @@ function drawMirrorTreeTemplate() {
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
             
-            // Рисуем ТОЛЬКО если сегмент завершен
             if (seg.isCompleted) {
                 const x1 = centerPixelX + seg.x1 * gridCellSize;
                 const y1 = gridOffsetY + seg.y1 * gridCellSize;
