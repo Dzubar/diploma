@@ -3473,7 +3473,7 @@ function drawMeanderWall() {
     /*const startX = canvas.width * 0.1; // Начало слева
     const startY = canvas.height * 0.7; // Начало внизу*/
     // Сдвигаем начало ещё левее, чтобы уместить 5 циклов на мобильных
-    const startX = canvas.width * 0.02; // Было 0.1 → стало 0.05 (сдвиг на 5% влево)
+    const startX = canvas.width * 0.05; // Было 0.1 → стало 0.05 (сдвиг на 5% влево)
     const startY = canvas.height * 0.7; // Начало внизу (без изменений)
     
     const horizontalLength = Math.min(45, canvas.width * 0.09); // Длина горизонтального отрезка
