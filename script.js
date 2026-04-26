@@ -985,7 +985,8 @@ if (distance <= treePathTolerance) {
         segmentStartPoints[i] = true;
     }
     
-    // Проверяем, прошли ли мы через конечную точку (distToEnd уже объявлен выше)
+    // Проверяем, прошли ли мы через конечную точку ← ✅ ИСПРАВЛЕНО
+    const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
     if (distToEnd <= pointTolerance) {
         segmentEndPoints[i] = true;
     }
