@@ -3781,24 +3781,30 @@ function drawMirrorTreeTemplate() {
     
     // ============================================
     // ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
+    // Рисуем ТОЛЬКО сегменты, которые полностью слева от центра
     // ============================================
     if (mirrorTreeSegments.length > 0) {
-        ctx.strokeStyle = '#005000';
+        ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
         for (let i = 0; i < mirrorTreeSegments.length; i++) {
             const seg = mirrorTreeSegments[i];
+            
+            // Вычисляем пиксельные координаты
             const x1 = centerPixelX + seg.x1 * gridCellSize;
             const y1 = gridOffsetY + seg.y1 * gridCellSize;
             const x2 = centerPixelX + seg.x2 * gridCellSize;
             const y2 = gridOffsetY + seg.y2 * gridCellSize;
             
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
+            // ✅ ФИЛЬТР: рисуем только если ОБЕ точки сегмента слева от центра
+            if (x1 <= centerPixelX && x2 <= centerPixelX) {
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
         }
     }
     
