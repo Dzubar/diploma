@@ -472,15 +472,15 @@ function displayExercise(exercise) {
         // Копируем левый образец (видимый)
         mirrorTreeSegments = JSON.parse(JSON.stringify(exercise.segments));
         
-        // Создаем зеркальные отражения для правой стороны с сохранением isCompleted и subTaskIndex
-        mirrorTreeTargets = exercise.segments.map(seg => ({
-            x1: -seg.x1,  // Зеркальное отражение относительно x=0
-            y1: seg.y1,
-            x2: -seg.x2,
-            y2: seg.y2,
-            isCompleted: false,  // Все сегменты начинаются как невыполненные
-            subTaskIndex: seg.subTaskIndex  // Сохраняем индекс подзадачи
-        }));
+    // Создаем целевые сегменты для ПРАВОЙ стороны (всегда положительный X)
+    mirrorTreeTargets = exercise.segments.map(seg => ({
+        x1: Math.abs(seg.x1), // Принудительно вправо
+        y1: seg.y1,
+        x2: Math.abs(seg.x2), // Принудительно вправо
+        y2: seg.y2,
+        isCompleted: false,
+        subTaskIndex: seg.subTaskIndex
+    }));
     }
     
     // Сброс переменных для pattern-dots (Узор по точкам)
@@ -3793,9 +3793,10 @@ function drawMirrorTreeTemplate() {
             const seg = mirrorTreeSegments[i];
             
             // Вычисляем пиксельные координаты
-            const x1 = centerPixelX + seg.x1 * gridCellSize;
+            // Левая часть: Образец (сдвигаем всё влево от оси)
+            const x1 = centerPixelX - Math.abs(seg.x1) * gridCellSize;
             const y1 = gridOffsetY + seg.y1 * gridCellSize;
-            const x2 = centerPixelX + seg.x2 * gridCellSize;
+            const x2 = centerPixelX - Math.abs(seg.x2) * gridCellSize;
             const y2 = gridOffsetY + seg.y2 * gridCellSize;
             
             // ✅ ФИЛЬТР: рисуем только если ОБЕ точки сегмента слева от центра
