@@ -2484,7 +2484,7 @@ function drawSpiralPath() {
     
     // Фон спирали (увеличенная толщина)
     ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 60; // Увеличена толщина с 40 до 60
+    ctx.lineWidth = 40; // Увеличена толщина с 40 до 60
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
