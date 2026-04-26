@@ -3372,8 +3372,11 @@ function drawRhythmicSpiral() {
     const pattern = ['big', 'small', 'small', 'big', 'small', 'small'];
     
     // Вычисляем общую ширину
+    /*const totalWidth = canvas.width * 0.75;
+    const startX = (canvas.width - totalWidth) / 2;*/ //старый вариант
+    //Оставляем размер спирали как есть (75% ширины экрана), но сдвигаем влево
     const totalWidth = canvas.width * 0.75;
-    const startX = (canvas.width - totalWidth) / 2;
+    const startX = 20; //Фиксированный отступ слева, чтобы влезало на мобильные
     
     // Вычисляем ширину каждой петли с учетом их размеров
     const bigWidth = bigRadius * 2.2; // Ширина большой петли с запасом
