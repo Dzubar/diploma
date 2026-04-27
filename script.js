@@ -54,6 +54,7 @@ let userDrawnPoints = []; // Точки, нарисованные пользов
 let segmentStartPoints = []; // Отслеживание прохождения через начальную точку каждого сегмента
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 40; // Допуск для попадания в контрольную точку (пиксели)
+let lastMirrorPoint = null; // Запоминает последнюю точку рисования для продолжения
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -1129,8 +1130,12 @@ function stopDrawing(e) {
             checkPathFinish();
         }
         
-        // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
-        // Здесь больше ничего не нужно делать
+        // Модуль 5: Зеркальная елочка - просто останавливаем рисование, не сбрасывая холст
+        if (currentExercise && currentExercise.type === 'mirror-tree') {
+            isDrawing = false;
+            ctx.closePath();
+            return;
+        }
 }
 
 
@@ -1148,103 +1153,58 @@ function getPosition(e) {
 // ============================================
 
 // Начало рисования зеркальной елочки
+// Начало рисования зеркальной елочки
 function startDrawingMirrorTree(e) {
-    e.preventDefault();
-    if (exerciseCompleted) return;
+e.preventDefault();
+if (exerciseCompleted) return;
 
-    const pos = getPosition(e);
-    const gridCols = Math.floor(canvas.width / gridCellSize);
-    const centerGridX = gridCols / 2;
-    const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
+const pos = getPosition(e);
 
-    // Проверяем, находимся ли в правой половине
-    if (pos.x < centerPixelX) {
-        showMirrorTreeError('Рисуй только справа!');
-        return;
-    }
+// Вычисляем центральную ось
+const gridCols = Math.floor(canvas.width / gridCellSize);
+const centerGridX = gridCols / 2;
+const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
 
-    // Проверяем близость к стартовой точке (первой точке pathPoints)
-    if (pathPoints.length > 0) {
-        const startPoint = pathPoints[0];
-        const distanceToStart = Math.sqrt(
-            Math.pow(pos.x - startPoint.x, 2) + 
-            Math.pow(pos.y - startPoint.y, 2)
-        );
-        if (distanceToStart > 30) {
-            showMirrorTreeError('Начни рисовать от зеленой линии!');
-            return;
-        }
-    }
-
-    // Начинаем рисование
-    isDrawing = true;
-    userPath = [];
-    exitCount = 0;
-    isOutOfBounds = false;
-    userPath.push(pos);
-
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+// Проверяем, находимся ли мы в правой половине холста
+if (pos.x < centerPixelX) {
+    showMirrorTreeError('Рисуй только справа!');
+    return;
 }
 
-
-// Рисование с проверкой попадания в целевые сегменты
-function drawMirrorTreeWithCheck(pos) {
-    if (!isDrawing) return;
-    userPath.push(pos);
-
-    // Проверяем расстояние до траектории
-    const distanceToPath = getDistanceToPath(pos);
-    const boundaryTolerance = 35; // Допуск для елочки
-
-    if (distanceToPath > boundaryTolerance) {
-        // Вышли за границы
-        if (!isOutOfBounds) {
-            isOutOfBounds = true;
-            exitCount++;
-            
-            // Рисуем красную линию
-            ctx.strokeStyle = '#ff5252';
-            ctx.lineTo(pos.x, pos.y);
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-            
-            // Прерываем рисование
-            isDrawing = false;
-            ctx.closePath();
-            
-            showMirrorTreeError('Вышел за границы! Попробуй снова');
-            
-            setTimeout(() => {
-                clearCanvas();
-                drawMirrorTreeTemplate();
-            }, 1500);
-        }
+// Проверяем, можно ли продолжить с последнего места (если есть последняя точка)
+// и если новая точка рядом с ней (допуск 50px для пальца)
+if (userDrawnPoints && userDrawnPoints.length > 0) {
+    const lastPoint = userDrawnPoints[userDrawnPoints.length - 1];
+    const dist = Math.sqrt(
+        Math.pow(pos.x - lastPoint.x, 2) + 
+        Math.pow(pos.y - lastPoint.y, 2)
+    );
+    
+    // Если коснулись рядом с последней точкой - продолжаем рисование
+    if (dist < 50) {
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        userDrawnPoints.push(pos);
+        totalPointsCount++;
         return;
     }
+}
 
-    // В пределах границ — рисуем зеленым
-    ctx.strokeStyle = '#4caf50';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
+// Начало нового штриха (если далеко от последней точки или это первый штрих)
+isDrawing = true;
+userDrawnPoints = [pos];
 
-    // Проверяем достижение финиша (последняя точка pathPoints)
-    if (pathPoints.length > 0) {
-        const finishPoint = pathPoints[pathPoints.length - 1];
-        const distanceToFinish = Math.sqrt(
-            Math.pow(pos.x - finishPoint.x, 2) + 
-            Math.pow(pos.y - finishPoint.y, 2)
-        );
-        
-        if (distanceToFinish <= 30 && userPath.length > 20) {
-            completeMirrorTree();
-        }
-    }
+// Сбрасываем счётчики для нового штриха
+errorPointsCount = 0;
+totalPointsCount = 1;
+
+// Сбрасываем отслеживание контрольных точек
+segmentStartPoints = new Array(mirrorTreeTargets.length).fill(false);
+segmentEndPoints = new Array(mirrorTreeTargets.length).fill(false);
+
+ctx.beginPath();
+ctx.moveTo(pos.x, pos.y);
 }
 
 function checkMirrorSubTaskCompletion() {
