@@ -1347,100 +1347,96 @@ function startDrawingMirrorTree(e) {
 
 // Рисование с проверкой попадания в целевые сегменты
 function drawMirrorTreeWithCheck(pos) {
-  if (!isDrawing) return;
-  userDrawnPoints.push(pos);
-  totalPointsCount++;
+    if (!isDrawing) return;
+    userDrawnPoints.push(pos);
+    totalPointsCount++;
 
-  // Вычисляем центральную ось
-  const gridCols = Math.floor(canvas.width / gridCellSize);
-  const centerGridX = gridCols / 2;
-  const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
+    // Вычисляем центральную ось
+    const gridCols = Math.floor(canvas.width / gridCellSize);
+    const centerGridX = gridCols / 2;
+    const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
 
-  // Проверяем, находимся ли мы в правой половине холста
-  if (pos.x < centerPixelX) {
-    errorPointsCount++;
-    return; // Не рисуем вне правой части
-  }
-
-  // Проверяем попадание в целевые сегменты
-  let isOnSegment = false;
-  let minDistanceToAnySegment = Infinity;
-
-  for (let i = 0; i < mirrorTreeTargets.length; i++) {
-    const seg = mirrorTreeTargets[i];
-
-    // Пропускаем уже завершенные сегменты
-    if (seg.isCompleted) continue;
-
-    // Пропускаем сегменты, не принадлежащие текущему этапу
-    if (seg.subTaskIndex !== currentSubTask) continue;
-
-    // Преобразуем координаты сегмента в пиксели
-    const x1 = centerPixelX + seg.x1 * gridCellSize;
-    const y1 = gridOffsetY + seg.y1 * gridCellSize;
-    const x2 = centerPixelX + seg.x2 * gridCellSize;
-    const y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-    // Проверяем расстояние до линии сегмента
-    const distance = distanceToSegment(pos, seg, centerPixelX);
-
-    if (distance < minDistanceToAnySegment) {
-      minDistanceToAnySegment = distance;
+    // Проверяем, находимся ли мы в правой половине холста
+    if (pos.x < centerPixelX) {
+        errorPointsCount++;
+        return; // Не рисуем вне правой части
     }
 
-    if (distance <= treePathTolerance) {
-      isOnSegment = true;
+    // Проверяем попадание в целевые сегменты
+    let isOnSegment = false;
+    let minDistanceToAnySegment = Infinity;
 
-      // Проверяем, прошли ли мы через начальную точку
-      const distToStart = Math.sqrt(
-        Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2)
-      );
-      if (distToStart <= pointTolerance) {
-        segmentStartPoints[i] = true;
-      }
-
-      // Проверяем, прошли ли мы через конечную точку
-      const distToEnd = Math.sqrt(
-        Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2)
-      );
-      if (distToEnd <= pointTolerance) {
-        segmentEndPoints[i] = true;
-      }
-
-      // Если прошли через обе точки - сегмент завершен
-      if (segmentStartPoints[i] && segmentEndPoints[i]) {
-        if (!seg.isCompleted) {
-          seg.isCompleted = true;
-
-          // Перерисовываем холст
-          clearCanvas();
-          drawMirrorTreeTemplate();
-
-          // Проверяем, завершен ли текущий этап
-          checkMirrorSubTaskCompletion();
+    for (let i = 0; i < mirrorTreeTargets.length; i++) {
+        const seg = mirrorTreeTargets[i];
+        
+        // Пропускаем уже завершенные сегменты
+        if (seg.isCompleted) continue;
+        
+        // Пропускаем сегменты, не принадлежащие текущему этапу
+        if (seg.subTaskIndex !== currentSubTask) continue;
+        
+        // Преобразуем координаты сегмента в пиксели
+        const x1 = centerPixelX + seg.x1 * gridCellSize;
+        const y1 = gridOffsetY + seg.y1 * gridCellSize;
+        const x2 = centerPixelX + seg.x2 * gridCellSize;
+        const y2 = gridOffsetY + seg.y2 * gridCellSize;
+         
+        // Проверяем расстояние до линии сегмента
+        const distance = distanceToSegment(pos, seg, centerPixelX);
+        
+        if (distance < minDistanceToAnySegment) {
+            minDistanceToAnySegment = distance;
         }
-      }
+        
+        if (distance <= treePathTolerance) {
+            isOnSegment = true;
+            
+            // Проверяем, прошли ли мы через начальную точку
+            const distToStart = Math.sqrt(Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2));
+            if (distToStart <= pointTolerance) {
+                segmentStartPoints[i] = true;
+            }
+            
+            // Проверяем, прошли ли мы через конечную точку
+            const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
+            if (distToEnd <= pointTolerance) {
+                segmentEndPoints[i] = true;
+            }
+            
+            // Если прошли через обе точки - сегмент завершен
+            if (segmentStartPoints[i] && segmentEndPoints[i]) {
+                if (!seg.isCompleted) {
+                    seg.isCompleted = true;
+                    
+                    // Перерисовываем холст
+                    clearCanvas();
+                    drawMirrorTreeTemplate();
+                    
+                    // Проверяем, завершен ли текущий этап
+                    checkMirrorSubTaskCompletion();
+                }
+            }
+        }
     }
-  }
 
-  // Рисуем линию обратной связи
-  // Синий - если в пределах допустимой области (до 50px от ближайшего сегмента)
-  // Красный - только если далеко от всех сегментов (более 50px)
-  const maxAllowedDistance = 50; // Максимальное расстояние от траектории
+    // Рисуем линию обратной связи
+    // Синий - если в пределах допустимой области (до 50px от ближайшего сегмента)
+    // Красный - только если далеко от всех сегментов (более 50px)
+    const maxAllowedDistance = 50; // Максимальное расстояние от траектории
+    
+    if (minDistanceToAnySegment <= maxAllowedDistance) {
+        ctx.strokeStyle = '#2196f3'; // Синий - в допустимой области
+        ctx.lineWidth = 4;
+    } else {
+        ctx.strokeStyle = '#ff5252'; // Красный - слишком далеко
+        ctx.lineWidth = 4;
+        errorPointsCount++;
+    }
 
-  if (minDistanceToAnySegment <= maxAllowedDistance) {
-    ctx.strokeStyle = "#2196f3"; // Синий - в допустимой области
-    ctx.lineWidth = 4;
-  } else {
-    ctx.strokeStyle = "#ff5252"; // Красный - слишком далеко
-    ctx.lineWidth = 4;
-    errorPointsCount++;
-  }
-
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.lineTo(pos.x, pos.y);
-  ctx.stroke();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
 }
 
 // Проверяем, выполнены ли все сегменты текущего этапа
