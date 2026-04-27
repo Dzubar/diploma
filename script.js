@@ -1212,58 +1212,88 @@ ctx.moveTo(pos.x, pos.y);
 function drawMirrorTreeWithCheck(pos) {
     if (!isDrawing) return;
     userDrawnPoints.push(pos);
+    totalPointsCount++;
 
+    // Вычисляем центральную ось
     const gridCols = Math.floor(canvas.width / gridCellSize);
     const centerGridX = gridCols / 2;
     const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
 
+    // Проверяем, находимся ли мы в правой половине холста
     if (pos.x < centerPixelX) {
-        showMirrorTreeError('Рисуй только справа!');
-        isDrawing = false;
-        ctx.closePath();
-        return;
+        errorPointsCount++;
+        return; // Не рисуем вне правой части
     }
 
+    // Проверяем попадание в целевые сегменты
     let isOnSegment = false;
+    let minDistanceToAnySegment = Infinity;
 
     for (let i = 0; i < mirrorTreeTargets.length; i++) {
         const seg = mirrorTreeTargets[i];
+        
+        // Пропускаем уже завершенные сегменты
         if (seg.isCompleted) continue;
+        
+        // Пропускаем сегменты, не принадлежащие текущему этапу
         if (seg.subTaskIndex !== currentSubTask) continue;
-
+        
+        // Преобразуем координаты сегмента в пиксели
         const x1 = centerPixelX + seg.x1 * gridCellSize;
         const y1 = gridOffsetY + seg.y1 * gridCellSize;
         const x2 = centerPixelX + seg.x2 * gridCellSize;
         const y2 = gridOffsetY + seg.y2 * gridCellSize;
-
+         
+        // Проверяем расстояние до линии сегмента
         const distance = distanceToSegment(pos, seg, centerPixelX);
-
+        
+        if (distance < minDistanceToAnySegment) {
+            minDistanceToAnySegment = distance;
+        }
+        
         if (distance <= treePathTolerance) {
             isOnSegment = true;
-
+            
+            // Проверяем, прошли ли мы через начальную точку
             const distToStart = Math.sqrt(Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2));
-            if (distToStart <= pointTolerance) segmentStartPoints[i] = true;
-
+            if (distToStart <= pointTolerance) {
+                segmentStartPoints[i] = true;
+            }
+            
+            // Проверяем, прошли ли мы через конечную точку
             const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
-            if (distToEnd <= pointTolerance) segmentEndPoints[i] = true;
-
+            if (distToEnd <= pointTolerance) {
+                segmentEndPoints[i] = true;
+            }
+            
+            // Если прошли через обе точки - сегмент завершен
             if (segmentStartPoints[i] && segmentEndPoints[i]) {
                 if (!seg.isCompleted) {
                     seg.isCompleted = true;
+                    
+                    // Перерисовываем холст
                     clearCanvas();
                     drawMirrorTreeTemplate();
+                    
+                    // Проверяем, завершен ли текущий этап
                     checkMirrorSubTaskCompletion();
                 }
             }
         }
     }
 
-    if (isOnSegment) {
-        ctx.strokeStyle = '#2196f3';
+    // Рисуем линию обратной связи
+    // Синий - если в пределах допустимой области (до 50px от ближайшего сегмента)
+    // Красный - только если далеко от всех сегментов (более 50px)
+    const maxAllowedDistance = 50; // Максимальное расстояние от траектории
+    
+    if (minDistanceToAnySegment <= maxAllowedDistance) {
+        ctx.strokeStyle = '#2196f3'; // Синий - в допустимой области
         ctx.lineWidth = 4;
     } else {
-        ctx.strokeStyle = '#ff5252';
+        ctx.strokeStyle = '#ff5252'; // Красный - слишком далеко
         ctx.lineWidth = 4;
+        errorPointsCount++;
     }
 
     ctx.lineCap = 'round';
@@ -1272,24 +1302,7 @@ function drawMirrorTreeWithCheck(pos) {
     ctx.stroke();
 }
 
-function checkMirrorSubTaskCompletion() {
-    // Проверяем, выполнены ли все сегменты текущего этапа
-    const currentSubTaskSegments = mirrorTreeTargets.filter(seg => seg.subTaskIndex === currentSubTask);
-    const allSubTaskCompleted = currentSubTaskSegments.every(seg => seg.isCompleted);
 
-    if (allSubTaskCompleted) {
-        // Увеличиваем номер текущего этапа
-        currentSubTask++;
-
-        // Если это не последний этап - показываем промежуточную похвалу
-        if (currentSubTask < totalSubTasks) {
-            showMirrorFeedback('Молодец, продолжай!');
-        } else {
-            // Если это был последний этап - завершаем упражнение
-            completeMirrorTree();
-        }
-    }
-}
 
 // Вычисление расстояния от точки до сегмента
 function distanceToSegment(point, segment, centerPixelX) {
