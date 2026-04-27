@@ -55,6 +55,8 @@ let segmentStartPoints = []; // Отслеживание прохождения 
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 40; // Допуск для попадания в контрольную точку (пиксели)
 let lastMirrorPoint = null; // Запоминает последнюю точку рисования для продолжения
+let currentTargetSegmentIndex = 0; // Индекс текущего сегмента, который нужно нарисовать
+let fixedSegments = []; // Массив уже нарисованных (закрепленных) сегментов
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -857,6 +859,8 @@ function displayExercise(exercise) {
       subTaskIndex: seg.subTaskIndex
     }));
   }
+  currentTargetSegmentIndex = 0;
+  fixedSegments = [];
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -1260,46 +1264,34 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
-  if (!isDrawing) return;
-  e.preventDefault();
-  isDrawing = false;
-  ctx.closePath();
-  // Модуль 5: Узор по точкам
-  if (currentExercise && currentExercise.type === "pattern-dots") {
-    stopDrawingPatternDots(e);
-    return;
-  }
+    if (!isDrawing) return;
+    e.preventDefault();
+    isDrawing = false;
+    ctx.closePath();
 
-  // Модуль 2, 3 и 4: Проверка достижения финиша
-  if (
-    currentExercise &&
-    (currentExercise.type.startsWith("path-") ||
-      currentExercise.type === "rhythmic-fence" ||
-      currentExercise.type === "wave-cliff" ||
-      currentExercise.type === "rhythmic-spiral" ||
-      currentExercise.type === "meander-wall" ||
-      currentExercise.type === "combined-chain")
-  ) {
-    checkPathFinish();
-  }
-
-    // Модуль 5: Зеркальная елочка - ИСПРАВЛЕННАЯ логика
-    if (currentExercise && currentExercise.type === 'mirror-tree') {
-        isDrawing = false;
-        ctx.closePath();
-    
-        // Если было слишком много ошибок (красных линий), очищаем холст
-        // Порог: если больше 40% точек были с ошибкой
-        if (totalPointsCount > 10 && (errorPointsCount / totalPointsCount) > 0.4) {
-            // Небольшая задержка, чтобы ребенок увидел результат
-            setTimeout(() => {
-                clearCanvas();
-                drawMirrorTreeTemplate();
-                showMirrorTreeError('Не совсем так! Попробуй ещё раз');
-            }, 200);
-        }
-        // Если ошибок мало — ничего не делаем, синяя линия уже на холсте и останется там
+    // Модуль 5: Узор по точкам
+    if (currentExercise && currentExercise.type === 'pattern-dots') {
+        stopDrawingPatternDots(e);
         return;
+    }
+
+    // Модуль 5: Зеркальная елочка
+    if (currentExercise && currentExercise.type === 'mirror-tree') {
+        // Если ребенок оторвал палец, не дойдя до конца сегмента - просто сбрасываем штрих
+        // Но не очищаем уже пройденные сегменты
+        clearCanvas();
+        drawMirrorTreeTemplate();
+        return;
+    }
+
+    // Модуль 2, 3 и 4
+    if (currentExercise && (currentExercise.type.startsWith('path-') || 
+        currentExercise.type === 'rhythmic-fence' || 
+        currentExercise.type === 'wave-cliff' ||
+        currentExercise.type === 'rhythmic-spiral' ||
+        currentExercise.type === 'meander-wall' ||
+        currentExercise.type === 'combined-chain')) {
+        checkPathFinish();
     }
 }
 
@@ -1318,55 +1310,39 @@ function getPosition(e) {
 
 // Начало рисования зеркальной елочки
 function startDrawingMirrorTree(e) {
-  e.preventDefault();
-  if (exerciseCompleted) return;
+    e.preventDefault();
+    if (exerciseCompleted) return;
 
-  const pos = getPosition(e);
+    const pos = getPosition(e);
+    const gridCols = Math.floor(canvas.width / gridCellSize);
+    const centerGridX = gridCols / 2;
+    const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
 
-  // Вычисляем центральную ось
-  const gridCols = Math.floor(canvas.width / gridCellSize);
-  const centerGridX = gridCols / 2;
-  const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
-
-  // Проверяем, находимся ли мы в правой половине холста
-  if (pos.x < centerPixelX) {
-    showMirrorTreeError("Рисуй только справа!");
-    return;
-  }
-
-  // Проверяем, можно ли продолжить с последнего места (если есть последняя точка)
-  // и если новая точка рядом с ней (допуск 50px для пальца)
-  if (userDrawnPoints && userDrawnPoints.length > 0) {
-    const lastPoint = userDrawnPoints[userDrawnPoints.length - 1];
-    const dist = Math.sqrt(
-      Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2)
-    );
-
-    // Если коснулись рядом с последней точкой - продолжаем рисование
-    if (dist < 50) {
-      isDrawing = true;
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      userDrawnPoints.push(pos);
-      totalPointsCount++;
-      return;
+    // Проверяем, что рисуют справа
+    if (pos.x < centerPixelX) {
+        showMirrorTreeError('Рисуй только справа!');
+        return;
     }
-  }
 
-  // Начало нового штриха (если далеко от последней точки или это первый штрих)
-  isDrawing = true;
-  userDrawnPoints = [pos];
+    // Проверяем, что начало рисования рядом с начальной точкой текущего сегмента
+    if (currentTargetSegmentIndex < mirrorTreeTargets.length) {
+        const currentSeg = mirrorTreeTargets[currentTargetSegmentIndex];
+        const startX = centerPixelX + currentSeg.x1 * gridCellSize;
+        const startY = gridOffsetY + currentSeg.y1 * gridCellSize;
+        
+        const distToStart = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2));
+        
+        if (distToStart > 40) { // Допуск 40px
+            showMirrorTreeError('Начни от красной точки!');
+            return;
+        }
+    }
 
-  // Сбрасываем счётчики для нового штриха
-  errorPointsCount = 0;
-  totalPointsCount = 1;
-
-  // Сбрасываем отслеживание контрольных точек
-  segmentStartPoints = new Array(mirrorTreeTargets.length).fill(false);
-  segmentEndPoints = new Array(mirrorTreeTargets.length).fill(false);
-
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
+    isDrawing = true;
+    userDrawnPoints = [pos];
+    
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
 }
 
 // Рисование с проверкой попадания в целевые сегменты
@@ -1564,19 +1540,17 @@ function showMirrorFeedback(message) {
 
 // Завершение упражнения
 function completeMirrorTree() {
-  exerciseCompleted = true;
-  isDrawing = false;
-  const feedback = document.getElementById("feedback");
-  feedback.textContent = "🎉 Ты нарисовал красивую елочку!";
-  feedback.className = "feedback";
-  feedback.classList.remove("hidden");
+    exerciseCompleted = true;
+    isDrawing = false;
+    const feedback = document.getElementById('feedback');
+    feedback.textContent = '🎉 Ты нарисовал красивую елочку!';
+    feedback.className = 'feedback';
+    feedback.classList.remove('hidden');
+    document.getElementById('next-level-btn').classList.remove('hidden');
 
-  document.getElementById("next-level-btn").classList.remove("hidden");
-
-  //Исправлено с 2000 на 1500
-  setTimeout(() => {
-    nextExercise();
-  }, 1500);
+    setTimeout(() => {
+        nextExercise();
+    }, 1500);
 }
 
 // Вибрация устройства
@@ -4410,212 +4384,109 @@ function drawCombinedChain() {
 // МОДУЛЬ 5: ЗРИТЕЛЬНО-МОТОРНОЕ СООТНЕСЕНИЕ (ёлочка)
 // ============================================
 function drawMirrorTreeTemplate() {
-  // === 1. НАСТРОЙКА СЕТКИ ===
-  gridCellSize = 35;
-  const gridCols = Math.floor(canvas.width / gridCellSize);
-  const gridRows = Math.floor(canvas.height / gridCellSize);
-  const totalGridWidth = gridCols * gridCellSize;
-  const totalGridHeight = gridRows * gridCellSize;
-  gridOffsetX = (canvas.width - totalGridWidth) / 2;
-  gridOffsetY = (canvas.height - totalGridHeight) / 2;
+    // === 1. НАСТРОЙКА СЕТКИ ===
+    gridCellSize = 35;
+    const gridCols = Math.floor(canvas.width / gridCellSize);
+    const gridRows = Math.floor(canvas.height / gridCellSize);
+    const totalGridWidth = gridCols * gridCellSize;
+    const totalGridHeight = gridRows * gridCellSize;
+    gridOffsetX = (canvas.width - totalGridWidth) / 2;
+    gridOffsetY = (canvas.height - totalGridHeight) / 2;
 
-  const centerGridX = gridCols / 2;
-  const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
+    const centerGridX = gridCols / 2;
+    const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
 
-  // === 2. РИСУЕМ ФОН СЕТКИ ===
-  ctx.fillStyle = "#f5f5f5";
-  ctx.fillRect(gridOffsetX, gridOffsetY, totalGridWidth, totalGridHeight);
+    // === 2. ФОН И СЕТКА ===
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(gridOffsetX, gridOffsetY, totalGridWidth, totalGridHeight);
 
-  ctx.strokeStyle = "#d0d0d0";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= gridCols; i++) {
-    const x = gridOffsetX + i * gridCellSize;
+    ctx.strokeStyle = '#d0d0d0';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= gridCols; i++) {
+        const x = gridOffsetX + i * gridCellSize;
+        ctx.beginPath(); ctx.moveTo(x, gridOffsetY); ctx.lineTo(x, gridOffsetY + totalGridHeight); ctx.stroke();
+    }
+    for (let i = 0; i <= gridRows; i++) {
+        const y = gridOffsetY + i * gridCellSize;
+        ctx.beginPath(); ctx.moveTo(gridOffsetX, y); ctx.lineTo(gridOffsetX + totalGridWidth, y); ctx.stroke();
+    }
+
+    // === 3. ЗЕЛЕНАЯ ОСЬ ===
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(x, gridOffsetY);
-    ctx.lineTo(x, gridOffsetY + totalGridHeight);
+    ctx.moveTo(centerPixelX, gridOffsetY);
+    ctx.lineTo(centerPixelX, gridOffsetY + totalGridHeight);
     ctx.stroke();
-  }
-  for (let i = 0; i <= gridRows; i++) {
-    const y = gridOffsetY + i * gridCellSize;
-    ctx.beginPath();
-    ctx.moveTo(gridOffsetX, y);
-    ctx.lineTo(gridOffsetX + totalGridWidth, y);
-    ctx.stroke();
-  }
 
-  // === 3. ЗЕЛЕНАЯ ОСЬ ===
-  ctx.strokeStyle = "#4caf50";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(centerPixelX, gridOffsetY);
-  ctx.lineTo(centerPixelX, gridOffsetY + totalGridHeight);
-  ctx.stroke();
-
-  // === 4. ЛЕВАЯ ЧАСТЬ: ЧЕРНЫЙ ОБРАЗЕЦ ===
-  if (mirrorTreeSegments.length > 0) {
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    for (let i = 0; i < mirrorTreeSegments.length; i++) {
-      const seg = mirrorTreeSegments[i];
-      const x1 = centerPixelX + seg.x1 * gridCellSize;
-      const y1 = gridOffsetY + seg.y1 * gridCellSize;
-      const x2 = centerPixelX + seg.x2 * gridCellSize;
-      const y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-      // Рисуем только если сегмент полностью слева
-      if (x1 <= centerPixelX && x2 <= centerPixelX) {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-      // Если пересекает ось — обрезаем
-      else if (
-        (x1 <= centerPixelX && x2 > centerPixelX) ||
-        (x2 <= centerPixelX && x1 > centerPixelX)
-      ) {
-        const leftX = Math.min(x1, x2);
-        const rightX = Math.max(x1, x2);
-        const leftY = x1 < x2 ? y1 : y2;
-        const rightY = x1 < x2 ? y2 : y1;
-        ctx.beginPath();
-        ctx.moveTo(leftX, leftY);
-        ctx.lineTo(
-          centerPixelX,
-          leftY + ((rightY - leftY) * (centerPixelX - leftX)) / (rightX - leftX)
-        );
-        ctx.stroke();
-      }
-    }
-  }
-
-  // === 5. ПРАВАЯ ЧАСТЬ: ПУНКТИРНАЯ ПОДСКАЗКА (зеркальная копия) ===
-  // Генерируем pathPoints для правой части (зеркальное отражение)
-  pathPoints = [];
-
-  if (mirrorTreeSegments.length > 0) {
-    ctx.strokeStyle = "#e0e0e0"; // Серый фон дорожки
-    ctx.lineWidth = 40; // Широкая зона допуска
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    // Сначала рисуем серый фон для правой части
-    for (let i = 0; i < mirrorTreeSegments.length; i++) {
-      const seg = mirrorTreeSegments[i];
-      // Зеркалим: меняем знак x
-      const x1 = centerPixelX + -seg.x1 * gridCellSize;
-      const y1 = gridOffsetY + seg.y1 * gridCellSize;
-      const x2 = centerPixelX + -seg.x2 * gridCellSize;
-      const y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-      // Рисуем только правую часть
-      if (x1 >= centerPixelX && x2 >= centerPixelX) {
-        // Добавляем точки в pathPoints (с шагом 5px для точности)
-        const steps = Math.max(
-          Math.ceil(Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 5),
-          2
-        );
-        for (let j = 0; j <= steps; j++) {
-          const t = j / steps;
-          pathPoints.push({
-            x: x1 + (x2 - x1) * t,
-            y: y1 + (y2 - y1) * t
-          });
+    // === 4. ЛЕВАЯ ЧАСТЬ (ЧЕРНАЯ ЁЛКА) ===
+    if (mirrorTreeSegments.length > 0) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        for (let i = 0; i < mirrorTreeSegments.length; i++) {
+            const seg = mirrorTreeSegments[i];
+            // Рисуем только левую часть
+            const x1 = centerPixelX + seg.x1 * gridCellSize;
+            const y1 = gridOffsetY + seg.y1 * gridCellSize;
+            const x2 = centerPixelX + seg.x2 * gridCellSize;
+            const y2 = gridOffsetY + seg.y2 * gridCellSize;
+            
+            if (x1 <= centerPixelX && x2 <= centerPixelX) {
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            } else if ((x1 <= centerPixelX && x2 > centerPixelX) || (x2 <= centerPixelX && x1 > centerPixelX)) {
+                const leftX = Math.min(x1, x2);
+                const rightX = Math.max(x1, x2);
+                const leftY = (x1 < x2) ? y1 : y2;
+                const rightY = (x1 < x2) ? y2 : y1;
+                ctx.beginPath();
+                ctx.moveTo(leftX, leftY);
+                ctx.lineTo(centerPixelX, leftY + (rightY - leftY) * (centerPixelX - leftX) / (rightX - leftX));
+                ctx.stroke();
+            }
         }
+    }
 
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-      // Если пересекает ось — обрезаем и рисуем только правую часть
-      else if (
-        (x1 >= centerPixelX && x2 < centerPixelX) ||
-        (x2 >= centerPixelX && x1 < centerPixelX)
-      ) {
-        const rightX = Math.max(x1, x2);
-        const leftX = Math.min(x1, x2);
-        const rightY = x1 > x2 ? y1 : y2;
-        const leftY = x1 > x2 ? y2 : y1;
+    // === 5. ПРАВАЯ ЧАСТЬ (ТОЧКИ И ЗАКРЕПЛЕННЫЕ ЛИНИИ) ===
+    if (mirrorTreeTargets.length > 0) {
+        const dotRadius = 8;
 
-        const steps = Math.max(
-          Math.ceil(
-            Math.sqrt(
-              Math.pow(rightX - centerPixelX, 2) +
-                Math.pow(
-                  rightY -
-                    (leftY +
-                      ((rightY - leftY) * (centerPixelX - leftX)) /
-                        (rightX - leftX)),
-                  2
-                )
-            ) / 5
-          ),
-          2
-        );
-        for (let j = 0; j <= steps; j++) {
-          const t = j / steps;
-          const px = centerPixelX + (rightX - centerPixelX) * t;
-          const py =
-            leftY +
-            ((rightY - leftY) * (centerPixelX - leftX)) / (rightX - leftX) +
-            (rightY -
-              (leftY +
-                ((rightY - leftY) * (centerPixelX - leftX)) /
-                  (rightX - leftX))) *
-              t;
-          pathPoints.push({ x: px, y: py });
+        for (let i = 0; i < mirrorTreeTargets.length; i++) {
+            const seg = mirrorTreeTargets[i];
+            
+            // Преобразуем координаты (зеркальные, поэтому берем модуль x)
+            // Но мы уже создавали mirrorTreeTargets с Math.abs, так что берем как есть
+            // Внимание: в displayExercise мы делали Math.abs, но тут лучше пересчитать надежно
+            // Или использовать mirrorTreeTargets, которые уже подготовлены
+            // Используем mirrorTreeTargets напрямую
+            
+            const x1 = centerPixelX + seg.x1 * gridCellSize;
+            const y1 = gridOffsetY + seg.y1 * gridCellSize;
+            const x2 = centerPixelX + seg.x2 * gridCellSize;
+            const y2 = gridOffsetY + seg.y2 * gridCellSize;
+
+            // Если сегмент уже закреплен (пройден) - рисуем синюю линию
+            if (fixedSegments.includes(i)) {
+                ctx.strokeStyle = '#2196f3';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            } 
+            // Если это текущий целевой сегмент - рисуем красные точки
+            else if (i === currentTargetSegmentIndex) {
+                // Точка начала
+                ctx.fillStyle = '#ff5252';
+                ctx.beginPath(); ctx.arc(x1, y1, dotRadius, 0, Math.PI * 2); ctx.fill();
+                // Точка конца
+                ctx.beginPath(); ctx.arc(x2, y2, dotRadius, 0, Math.PI * 2); ctx.fill();
+            }
         }
-
-        ctx.beginPath();
-        ctx.moveTo(
-          centerPixelX,
-          leftY + ((rightY - leftY) * (centerPixelX - leftX)) / (rightX - leftX)
-        );
-        ctx.lineTo(rightX, rightY);
-        ctx.stroke();
-      }
     }
-
-    // Рисуем пунктирную траекторию поверх серого фона
-    ctx.strokeStyle = "#667eea";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([10, 5]);
-
-    for (let i = 0; i < mirrorTreeSegments.length; i++) {
-      const seg = mirrorTreeSegments[i];
-      const x1 = centerPixelX + -seg.x1 * gridCellSize;
-      const y1 = gridOffsetY + seg.y1 * gridCellSize;
-      const x2 = centerPixelX + -seg.x2 * gridCellSize;
-      const y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-      if (x1 >= centerPixelX && x2 >= centerPixelX) {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      } else if (
-        (x1 >= centerPixelX && x2 < centerPixelX) ||
-        (x2 >= centerPixelX && x1 < centerPixelX)
-      ) {
-        const rightX = Math.max(x1, x2);
-        const leftX = Math.min(x1, x2);
-        const rightY = x1 > x2 ? y1 : y2;
-        const leftY = x1 > x2 ? y2 : y1;
-        ctx.beginPath();
-        ctx.moveTo(
-          centerPixelX,
-          leftY + ((rightY - leftY) * (centerPixelX - leftX)) / (rightX - leftX)
-        );
-        ctx.lineTo(rightX, rightY);
-        ctx.stroke();
-      }
-    }
-    ctx.setLineDash([]);
-  }
 }
 
 function drawPatternDots() {
