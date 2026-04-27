@@ -797,11 +797,14 @@ function initCanvas() {
     canvas.addEventListener('touchstart', handleCanvasTouch);
     canvas.addEventListener('mousedown', handleCanvasClick);
 
-    // События для рисования (для других модулей)
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', stopDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
+// События для рисования (для других модулей)
+canvas.addEventListener('touchmove', draw);
+canvas.addEventListener('touchend', stopDrawing);
+canvas.addEventListener('touchcancel', stopDrawing); // Добавлено для отмены touch
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('mouseleave', stopDrawing); // Добавлено - когда курсор уходит с canvas
+canvas.addEventListener('mouseout', stopDrawing);   // Добавлено - альтернатива mouseleave
 
     // Удаляем старый обработчик resize, если есть
     window.removeEventListener('resize', resizeCanvas);
@@ -1073,9 +1076,12 @@ function startDrawing(e) {
 }
 
 function draw(e) {
-    if (!isDrawing)
-        return;
-    e.preventDefault();
+    // Предотвращаем двойную обработку (touch + mouse)
+if (e.type === 'mousemove' && e.touches) return;
+if (e.type === 'mouseup' && e.changedTouches) return;
+
+if (!isDrawing) return;
+e.preventDefault();
 
     const pos = getPosition(e);
 
@@ -1112,8 +1118,13 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
-    if (!isDrawing) return;
-    e.preventDefault();
+// Предотвращаем двойную обработку
+if (e.type === 'mouseup' && e.changedTouches) return;
+if (!isDrawing) return;
+
+e.preventDefault();
+isDrawing = false;
+ctx.closePath();
     
     // Модуль 5: Узор по точкам
     if (currentExercise && currentExercise.type === 'pattern-dots') {
