@@ -1153,58 +1153,57 @@ function getPosition(e) {
 // ============================================
 
 // Начало рисования зеркальной елочки
-// Начало рисования зеркальной елочки
 function startDrawingMirrorTree(e) {
-e.preventDefault();
-if (exerciseCompleted) return;
-
-const pos = getPosition(e);
-
-// Вычисляем центральную ось
-const gridCols = Math.floor(canvas.width / gridCellSize);
-const centerGridX = gridCols / 2;
-const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
-
-// Проверяем, находимся ли мы в правой половине холста
-if (pos.x < centerPixelX) {
-    showMirrorTreeError('Рисуй только справа!');
-    return;
-}
-
-// Проверяем, можно ли продолжить с последнего места (если есть последняя точка)
-// и если новая точка рядом с ней (допуск 50px для пальца)
-if (userDrawnPoints && userDrawnPoints.length > 0) {
-    const lastPoint = userDrawnPoints[userDrawnPoints.length - 1];
-    const dist = Math.sqrt(
-        Math.pow(pos.x - lastPoint.x, 2) + 
-        Math.pow(pos.y - lastPoint.y, 2)
-    );
-    
-    // Если коснулись рядом с последней точкой - продолжаем рисование
-    if (dist < 50) {
+        e.preventDefault();
+        if (exerciseCompleted) return;
+        
+        const pos = getPosition(e);
+        
+        // Вычисляем центральную ось
+        const gridCols = Math.floor(canvas.width / gridCellSize);
+        const centerGridX = gridCols / 2;
+        const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
+        
+        // Проверяем, находимся ли мы в правой половине холста
+        if (pos.x < centerPixelX) {
+            showMirrorTreeError('Рисуй только справа!');
+            return;
+        }
+        
+        // Проверяем, можно ли продолжить с последнего места (если есть последняя точка)
+        // и если новая точка рядом с ней (допуск 50px для пальца)
+        if (userDrawnPoints && userDrawnPoints.length > 0) {
+            const lastPoint = userDrawnPoints[userDrawnPoints.length - 1];
+            const dist = Math.sqrt(
+                Math.pow(pos.x - lastPoint.x, 2) + 
+                Math.pow(pos.y - lastPoint.y, 2)
+            );
+            
+            // Если коснулись рядом с последней точкой - продолжаем рисование
+            if (dist < 50) {
+                isDrawing = true;
+                ctx.beginPath();
+                ctx.moveTo(lastPoint.x, lastPoint.y);
+                userDrawnPoints.push(pos);
+                totalPointsCount++;
+                return;
+            }
+        }
+        
+        // Начало нового штриха (если далеко от последней точки или это первый штрих)
         isDrawing = true;
+        userDrawnPoints = [pos];
+        
+        // Сбрасываем счётчики для нового штриха
+        errorPointsCount = 0;
+        totalPointsCount = 1;
+        
+        // Сбрасываем отслеживание контрольных точек
+        segmentStartPoints = new Array(mirrorTreeTargets.length).fill(false);
+        segmentEndPoints = new Array(mirrorTreeTargets.length).fill(false);
+        
         ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        userDrawnPoints.push(pos);
-        totalPointsCount++;
-        return;
-    }
-}
-
-// Начало нового штриха (если далеко от последней точки или это первый штрих)
-isDrawing = true;
-userDrawnPoints = [pos];
-
-// Сбрасываем счётчики для нового штриха
-errorPointsCount = 0;
-totalPointsCount = 1;
-
-// Сбрасываем отслеживание контрольных точек
-segmentStartPoints = new Array(mirrorTreeTargets.length).fill(false);
-segmentEndPoints = new Array(mirrorTreeTargets.length).fill(false);
-
-ctx.beginPath();
-ctx.moveTo(pos.x, pos.y);
+        ctx.moveTo(pos.x, pos.y);
 }
 
 
@@ -1302,6 +1301,25 @@ function drawMirrorTreeWithCheck(pos) {
     ctx.stroke();
 }
 
+
+// Проверяем, выполнены ли все сегменты текущего этапа
+function checkMirrorSubTaskCompletion() {
+    const currentSubTaskSegments = mirrorTreeTargets.filter(seg => seg.subTaskIndex === currentSubTask);
+    const allSubTaskCompleted = currentSubTaskSegments.every(seg => seg.isCompleted);
+    
+    if (allSubTaskCompleted) {
+        // Увеличиваем номер текущего этапа
+        currentSubTask++;
+        
+        // Если это не последний этап - показываем промежуточную похвалу
+        if (currentSubTask < totalSubTasks) {
+            showMirrorFeedback('Молодец, продолжай!');
+        } else {
+            // Если это был последний этап - завершаем упражнение
+            completeMirrorTree();
+        }
+    }
+}
 
 
 // Вычисление расстояния от точки до сегмента
