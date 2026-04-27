@@ -1060,93 +1060,94 @@ function showErrorFeedback() {
 
 // Рисование
 function startDrawing(e) {
-    e.preventDefault();
-
-    // Модуль 5: Узор по точкам
-    if (currentExercise && currentExercise.type === 'pattern-dots') {
-        isDrawing = true;
-        startDrawingPatternDots(e);
-        return;
-    }
-
+e.preventDefault();
+// Модуль 5: Узор по точкам
+if (currentExercise && currentExercise.type === 'pattern-dots') {
     isDrawing = true;
-    const pos = getPosition(e);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+    startDrawingPatternDots(e);
+    return;
+}
+
+isDrawing = true;
+const pos = getPosition(e);
+
+// ВАЖНО: Начинаем новый путь, чтобы избежать соединения с предыдущим
+ctx.beginPath();
+ctx.moveTo(pos.x, pos.y);
 }
 
 function draw(e) {
-    // Предотвращаем двойную обработку (touch + mouse)
+// Предотвращаем двойную обработку (touch + mouse)
 if (e.type === 'mousemove' && e.touches) return;
-if (e.type === 'mouseup' && e.changedTouches) return;
 
 if (!isDrawing) return;
 e.preventDefault();
+const pos = getPosition(e);
 
-    const pos = getPosition(e);
+// Модуль 5: Зрительно-моторное соотнесение
+if (currentExercise && currentExercise.type === 'mirror-tree') {
+    drawMirrorTreeWithCheck(pos);
+    return;
+}
 
-    // Модуль 5: Зрительно-моторное соотнесение
-    if (currentExercise && currentExercise.type === 'mirror-tree') {
-        drawMirrorTreeWithCheck(pos);
-        return;
-    }
+// Модуль 5: Узор по точкам
+if (currentExercise && currentExercise.type === 'pattern-dots') {
+    drawPatternDotsWithCheck(pos);
+    return;
+}
 
-    // Модуль 5: Узор по точкам
-    if (currentExercise && currentExercise.type === 'pattern-dots') {
-        drawPatternDotsWithCheck(pos);
-        return;
-    }
+// Модуль 2, 3 и 4: Проверка границ дорожки
+if (currentExercise && (currentExercise.type.startsWith('path-') || 
+        currentExercise.type === 'rhythmic-fence' || 
+        currentExercise.type === 'wave-cliff' ||
+        currentExercise.type === 'rhythmic-spiral' ||
+        currentExercise.type === 'meander-wall' ||
+        currentExercise.type === 'combined-chain')) {
+    drawPathWithCheck(pos);
+    return;
+}
 
-    // Модуль 2, 3 и 4: Проверка границ дорожки
-    if (currentExercise && (currentExercise.type.startsWith('path-') ||
-            currentExercise.type === 'rhythmic-fence' ||
-            currentExercise.type === 'wave-cliff' ||
-            currentExercise.type === 'rhythmic-spiral' ||
-            currentExercise.type === 'meander-wall' ||
-            currentExercise.type === 'combined-chain')) {
-        drawPathWithCheck(pos);
-        return;
-    }
-
-    // Обычное рисование для других модулей
-    ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = '#667eea';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
+// Обычное рисование для других модулей
+ctx.lineTo(pos.x, pos.y);
+ctx.strokeStyle = '#667eea';
+ctx.lineWidth = 4;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+ctx.stroke();
 }
 
 function stopDrawing(e) {
 // Предотвращаем двойную обработку
 if (e.type === 'mouseup' && e.changedTouches) return;
 if (!isDrawing) return;
-
 e.preventDefault();
 isDrawing = false;
 ctx.closePath();
-    
-    // Модуль 5: Узор по точкам
-    if (currentExercise && currentExercise.type === 'pattern-dots') {
-        stopDrawingPatternDots(e);
-        return;
-    }
 
-    // Модуль 5: Зеркальная елочка - новая логика
-    if (currentExercise && currentExercise.type === 'mirror-tree') {
-        finishMirrorTreeStroke(); // ← ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
-        return;
-    }
+// Модуль 5: Узор по точкам
+if (currentExercise && currentExercise.type === 'pattern-dots') {
+    stopDrawingPatternDots(e);
+    return;
+}
 
-    // Модуль 2, 3 и 4: Проверка достижения финиша
-    if (currentExercise && (currentExercise.type.startsWith('path-') || 
-        currentExercise.type === 'rhythmic-fence' || 
-        currentExercise.type === 'wave-cliff' ||
-        currentExercise.type === 'rhythmic-spiral' ||
-        currentExercise.type === 'meander-wall' ||
-        currentExercise.type === 'combined-chain')) {
-        checkPathFinish();
-    }
+// Модуль 5: Зеркальная елочка - новая логика
+if (currentExercise && currentExercise.type === 'mirror-tree') {
+    finishMirrorTreeStroke();
+    return;
+}
+
+// Модуль 2, 3 и 4: Проверка достижения финиша
+if (currentExercise && (currentExercise.type.startsWith('path-') || 
+    currentExercise.type === 'rhythmic-fence' || 
+    currentExercise.type === 'wave-cliff' ||
+    currentExercise.type === 'rhythmic-spiral' ||
+    currentExercise.type === 'meander-wall' ||
+    currentExercise.type === 'combined-chain')) {
+    checkPathFinish();
+}
+
+// Очищаем путь после завершения рисования
+ctx.beginPath();
 }
 
 
