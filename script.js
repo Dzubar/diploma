@@ -3780,36 +3780,36 @@ function drawMirrorTreeTemplate() {
     ctx.stroke();
     
     // ============================================
-// ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
-// ============================================
-if (mirrorTreeSegments.length > 0) {
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    for (let i = 0; i < mirrorTreeSegments.length; i++) {
-        const seg = mirrorTreeSegments[i];
+    // ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
+    // ============================================
+    if (mirrorTreeSegments.length > 0) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         
-        // Преобразуем координаты
-        let x1 = centerPixelX + seg.x1 * gridCellSize;
-        let y1 = gridOffsetY + seg.y1 * gridCellSize;
-        let x2 = centerPixelX + seg.x2 * gridCellSize;
-        let y2 = gridOffsetY + seg.y2 * gridCellSize;
-        
-        // Пропускаем линии, которые полностью справа
-        if (x1 >= centerPixelX && x2 >= centerPixelX) continue;
-        
-        // Если линия пересекает ось (горизонтальная), обрезаем её строго по центру
-        if (x1 < centerPixelX && x2 >= centerPixelX) x2 = centerPixelX;
-        if (x2 < centerPixelX && x1 >= centerPixelX) x1 = centerPixelX;
-        
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+        for (let i = 0; i < mirrorTreeSegments.length; i++) {
+            const seg = mirrorTreeSegments[i];
+            
+            // Преобразуем координаты
+            let x1 = centerPixelX + seg.x1 * gridCellSize;
+            let y1 = gridOffsetY + seg.y1 * gridCellSize;
+            let x2 = centerPixelX + seg.x2 * gridCellSize;
+            let y2 = gridOffsetY + seg.y2 * gridCellSize;
+            
+            // Пропускаем линии, которые полностью справа
+            if (x1 >= centerPixelX && x2 >= centerPixelX) continue;
+            
+            // Если линия пересекает ось (горизонтальная), обрезаем её строго по центру
+            if (x1 < centerPixelX && x2 >= centerPixelX) x2 = centerPixelX;
+            if (x2 < centerPixelX && x1 >= centerPixelX) x1 = centerPixelX;
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
     }
-}
     
         // ============================================
         // ПРАВАЯ ЧАСТЬ: ПУНКТИРНЫЕ ПОДСКАЗКИ
