@@ -1207,6 +1207,71 @@ ctx.beginPath();
 ctx.moveTo(pos.x, pos.y);
 }
 
+
+// Рисование с проверкой попадания в целевые сегменты
+function drawMirrorTreeWithCheck(pos) {
+    if (!isDrawing) return;
+    userDrawnPoints.push(pos);
+
+    const gridCols = Math.floor(canvas.width / gridCellSize);
+    const centerGridX = gridCols / 2;
+    const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
+
+    if (pos.x < centerPixelX) {
+        showMirrorTreeError('Рисуй только справа!');
+        isDrawing = false;
+        ctx.closePath();
+        return;
+    }
+
+    let isOnSegment = false;
+
+    for (let i = 0; i < mirrorTreeTargets.length; i++) {
+        const seg = mirrorTreeTargets[i];
+        if (seg.isCompleted) continue;
+        if (seg.subTaskIndex !== currentSubTask) continue;
+
+        const x1 = centerPixelX + seg.x1 * gridCellSize;
+        const y1 = gridOffsetY + seg.y1 * gridCellSize;
+        const x2 = centerPixelX + seg.x2 * gridCellSize;
+        const y2 = gridOffsetY + seg.y2 * gridCellSize;
+
+        const distance = distanceToSegment(pos, seg, centerPixelX);
+
+        if (distance <= treePathTolerance) {
+            isOnSegment = true;
+
+            const distToStart = Math.sqrt(Math.pow(pos.x - x1, 2) + Math.pow(pos.y - y1, 2));
+            if (distToStart <= pointTolerance) segmentStartPoints[i] = true;
+
+            const distToEnd = Math.sqrt(Math.pow(pos.x - x2, 2) + Math.pow(pos.y - y2, 2));
+            if (distToEnd <= pointTolerance) segmentEndPoints[i] = true;
+
+            if (segmentStartPoints[i] && segmentEndPoints[i]) {
+                if (!seg.isCompleted) {
+                    seg.isCompleted = true;
+                    clearCanvas();
+                    drawMirrorTreeTemplate();
+                    checkMirrorSubTaskCompletion();
+                }
+            }
+        }
+    }
+
+    if (isOnSegment) {
+        ctx.strokeStyle = '#2196f3';
+        ctx.lineWidth = 4;
+    } else {
+        ctx.strokeStyle = '#ff5252';
+        ctx.lineWidth = 4;
+    }
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+}
+
 function checkMirrorSubTaskCompletion() {
     // Проверяем, выполнены ли все сегменты текущего этапа
     const currentSubTaskSegments = mirrorTreeTargets.filter(seg => seg.subTaskIndex === currentSubTask);
