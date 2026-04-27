@@ -3731,7 +3731,7 @@ function drawCombinedChain() {
 
 function drawMirrorTreeTemplate() {
     // Параметры сетки
-    gridCellSize = 35; 
+    gridCellSize = 35;
     const gridCols = Math.floor(canvas.width / gridCellSize);
     const gridRows = Math.floor(canvas.height / gridCellSize);
     // Центрируем сетку
@@ -3779,7 +3779,7 @@ function drawMirrorTreeTemplate() {
     // ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
     // ============================================
     if (mirrorTreeSegments.length > 0) {
-        ctx.strokeStyle = '#055000';
+        ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -3787,19 +3787,18 @@ function drawMirrorTreeTemplate() {
         for (let i = 0; i < mirrorTreeSegments.length; i++) {
             const seg = mirrorTreeSegments[i];
             
-            // Преобразуем координаты
+            // Вычисляем пиксельные координаты
             let x1 = centerPixelX + seg.x1 * gridCellSize;
             let y1 = gridOffsetY + seg.y1 * gridCellSize;
             let x2 = centerPixelX + seg.x2 * gridCellSize;
             let y2 = gridOffsetY + seg.y2 * gridCellSize;
             
-            // ОБРЕЗКА ДЛЯ ЛЕВОЙ СТОРОНЫ:
-            // Если линия уходит вправо, обрезаем её по центру
+            // Обрезаем линию, если она уходит вправо за ось
             if (x1 > centerPixelX) x1 = centerPixelX;
             if (x2 > centerPixelX) x2 = centerPixelX;
             
-            // Рисуем только если есть что рисовать
-            if (x1 < centerPixelX || x2 < centerPixelX) {
+            // Рисуем только если линия не стала точкой
+            if (x1 !== x2 || y1 !== y2) {
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
@@ -3820,23 +3819,22 @@ function drawMirrorTreeTemplate() {
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
             
+            // Вычисляем пиксельные координаты
             let x1 = centerPixelX + seg.x1 * gridCellSize;
             let y1 = gridOffsetY + seg.y1 * gridCellSize;
             let x2 = centerPixelX + seg.x2 * gridCellSize;
             let y2 = gridOffsetY + seg.y2 * gridCellSize;
             
             // ОБРЕЗКА ДЛЯ ПРАВОЙ СТОРОНЫ:
-            // Если линия уходит влево (горизонтальные), обрезаем её по центру
+            // Если координата левее оси, принудительно ставим её на ось
             if (x1 < centerPixelX) x1 = centerPixelX;
             if (x2 < centerPixelX) x2 = centerPixelX;
             
-            // Рисуем только если есть что рисовать
-            if (x1 > centerPixelX || x2 > centerPixelX) {
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-            }
+            // Рисуем линию
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
         }
         
         ctx.setLineDash([]); // Сброс пунктира
@@ -3853,7 +3851,7 @@ function drawMirrorTreeTemplate() {
                 let x2 = centerPixelX + seg.x2 * gridCellSize;
                 let y2 = gridOffsetY + seg.y2 * gridCellSize;
                 
-                // Аналогичная обрезка для синих линий
+                // Аналогичная обрезка для завершенных
                 if (x1 < centerPixelX) x1 = centerPixelX;
                 if (x2 < centerPixelX) x2 = centerPixelX;
                 
@@ -3865,6 +3863,7 @@ function drawMirrorTreeTemplate() {
         }
     }
 }
+
 
 function drawPatternDots() {
     // Инициализируем координаты точек в пиксели
