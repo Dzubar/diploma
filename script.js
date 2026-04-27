@@ -4171,22 +4171,30 @@ function drawCombinedChain() {
 // МОДУЛЬ 5: ЗРИТЕЛЬНО-МОТОРНОЕ СООТНЕСЕНИЕ
 // ============================================
 function drawMirrorTreeTemplate() {
-    gridCellSize = 35;
+    // Параметры сетки
+    gridCellSize = 35; // Размер клетки в пикселях
     const gridCols = Math.floor(canvas.width / gridCellSize);
     const gridRows = Math.floor(canvas.height / gridCellSize);
+    
+    // Центрируем сетку
     const totalGridWidth = gridCols * gridCellSize;
     const totalGridHeight = gridRows * gridCellSize;
     gridOffsetX = (canvas.width - totalGridWidth) / 2;
     gridOffsetY = (canvas.height - totalGridHeight) / 2;
-
+    
+    // Вычисляем позицию центральной оси (x=0 в координатах сетки)
     const centerGridX = gridCols / 2;
     const centerPixelX = gridOffsetX + centerGridX * gridCellSize;
-
-    // Фон и сетка
+    
+    // Рисуем фон сетки
     ctx.fillStyle = '#f5f5f5';
     ctx.fillRect(gridOffsetX, gridOffsetY, totalGridWidth, totalGridHeight);
+    
+    // Рисуем линии сетки (светло-серые)
     ctx.strokeStyle = '#d0d0d0';
     ctx.lineWidth = 1;
+    
+    // Вертикальные линии сетки
     for (let i = 0; i <= gridCols; i++) {
         const x = gridOffsetX + i * gridCellSize;
         ctx.beginPath();
@@ -4194,6 +4202,8 @@ function drawMirrorTreeTemplate() {
         ctx.lineTo(x, gridOffsetY + totalGridHeight);
         ctx.stroke();
     }
+    
+    // Горизонтальные линии сетки
     for (let i = 0; i <= gridRows; i++) {
         const y = gridOffsetY + i * gridCellSize;
         ctx.beginPath();
@@ -4201,69 +4211,65 @@ function drawMirrorTreeTemplate() {
         ctx.lineTo(gridOffsetX + totalGridWidth, y);
         ctx.stroke();
     }
-
-    // Зеленая ось симметрии
+    
+    // Рисуем центральную ось симметрии (зеленая вертикальная линия)
     ctx.strokeStyle = '#4caf50';
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(centerPixelX, gridOffsetY);
     ctx.lineTo(centerPixelX, gridOffsetY + totalGridHeight);
     ctx.stroke();
-
+    
     // ============================================
-    // ЛЕВАЯ ЧАСТЬ: Образец (черные линии)
+    // ЛЕВАЯ ЧАСТЬ: ВИДИМЫЙ ОБРАЗЕЦ (черные линии)
     // ============================================
     if (mirrorTreeSegments.length > 0) {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-
+        
         for (let i = 0; i < mirrorTreeSegments.length; i++) {
             const seg = mirrorTreeSegments[i];
-            let x1 = centerPixelX + seg.x1 * gridCellSize;
-            let y1 = gridOffsetY + seg.y1 * gridCellSize;
-            let x2 = centerPixelX + seg.x2 * gridCellSize;
-            let y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-            // Обрезаем по оси: оставляем только левую часть
-            if (x1 > centerPixelX)
-                x1 = centerPixelX;
-            if (x2 > centerPixelX)
-                x2 = centerPixelX;
-
-            if (x1 !== x2 || y1 !== y2) {
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-            }
+            const x1 = centerPixelX + seg.x1 * gridCellSize;
+            const y1 = gridOffsetY + seg.y1 * gridCellSize;
+            const x2 = centerPixelX + seg.x2 * gridCellSize;
+            const y2 = gridOffsetY + seg.y2 * gridCellSize;
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
         }
     }
-
+    
     // ============================================
-    // ПРАВАЯ ЧАСТЬ: Пунктирные подсказки + завершенные сегменты
+    // ПРАВАЯ ЧАСТЬ: ПУНКТИРНЫЕ ПОДСКАЗКИ + ЗАВЕРШЕННЫЕ
     // ============================================
     if (mirrorTreeTargets.length > 0) {
-        // 1. Бледный пунктир для ВСЕХ сегментов (направляющие)
-        ctx.strokeStyle = 'rgba(33, 150, 243, 0.25)'; // Полупрозрачный синий
+        // ШАГ 1: Сначала рисуем бледные пунктирные подсказки для ВСЕХ сегментов
+        ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; // Очень бледный синий (30% прозрачности)
         ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]); // Мелкий пунктир
+        ctx.setLineDash([8, 6]); // Пунктир: 8px линия, 6px пробел
         ctx.lineCap = 'round';
-
+        ctx.lineJoin = 'round';
+        
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
+            
+            // Преобразуем координаты
             let x1 = centerPixelX + seg.x1 * gridCellSize;
             let y1 = gridOffsetY + seg.y1 * gridCellSize;
             let x2 = centerPixelX + seg.x2 * gridCellSize;
             let y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-            // Обрезаем по оси: оставляем только правую часть
-            if (x1 < centerPixelX)
-                x1 = centerPixelX;
-            if (x2 < centerPixelX)
-                x2 = centerPixelX;
-
+            
+            // ОБРЕЗКА по центральной оси: оставляем только правую часть
+            // Если линия начинается слева от оси — обрезаем начало
+            if (x1 < centerPixelX) x1 = centerPixelX;
+            // Если линия заканчивается слева от оси — обрезаем конец
+            if (x2 < centerPixelX) x2 = centerPixelX;
+            
+            // Рисуем только если есть что рисовать (линия не стала точкой)
             if (x1 !== x2 || y1 !== y2) {
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
@@ -4271,30 +4277,33 @@ function drawMirrorTreeTemplate() {
                 ctx.stroke();
             }
         }
+        
         ctx.setLineDash([]); // Сброс пунктира
-
-        // 2. Завершенные сегменты (сплошная яркая линия поверх пунктира)
-        ctx.strokeStyle = '#2196f3';
+        
+        // ШАГ 2: Затем рисуем завершенные сегменты яркой сплошной линией (поверх пунктира)
+        ctx.strokeStyle = '#2196f3'; // Яркий синий
         ctx.lineWidth = 4;
-
+        
         for (let i = 0; i < mirrorTreeTargets.length; i++) {
             const seg = mirrorTreeTargets[i];
+            
             if (seg.isCompleted) {
+                // Те же координаты с обрезкой
                 let x1 = centerPixelX + seg.x1 * gridCellSize;
                 let y1 = gridOffsetY + seg.y1 * gridCellSize;
                 let x2 = centerPixelX + seg.x2 * gridCellSize;
                 let y2 = gridOffsetY + seg.y2 * gridCellSize;
-
-                // Та же обрезка по оси
-                if (x1 < centerPixelX)
-                    x1 = centerPixelX;
-                if (x2 < centerPixelX)
-                    x2 = centerPixelX;
-
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
+                
+                // Обрезка по оси
+                if (x1 < centerPixelX) x1 = centerPixelX;
+                if (x2 < centerPixelX) x2 = centerPixelX;
+                
+                if (x1 !== x2 || y1 !== y2) {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
             }
         }
     }
