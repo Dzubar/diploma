@@ -67,6 +67,14 @@ let dotRadius = 8; // Радиус точки в пикселях
 let dotTolerance = 15; // Допуск для попадания в точку (пиксели)
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
+// Версия файла для отладки
+const FILE_VERSION = '1.0.2'; // Изменяйте при каждом обновлении
+
+function logVersion() {
+    console.log(`📄 script.js version: ${FILE_VERSION}`);
+    console.log(` Build: ${new Date().toLocaleDateString()}`);
+}
+
 // Инициализация пользователя (первый вход / повторный)
 function initUser() {
   const savedName = localStorage.getItem(STORAGE_KEYS.USER_NAME);
@@ -129,6 +137,7 @@ function saveStats() {
 document.addEventListener("DOMContentLoaded", () => {
   loadStats();
   initUser(); //ДОБАВЛЕНО: инициализация пользователя
+	logVersion(); // ← ДОБАВЛЕНО: вывод версии при загрузке
   // Не инициализируем canvas сразу, только когда он понадобится
 });
 
@@ -5200,3 +5209,7 @@ function resetGridExercise() {
   // Обновляем счетчик
   document.getElementById("current-step").textContent = "0";
 }
+
+// В глобальной области (после всех функций)
+window.appVersion = FILE_VERSION;
+window.checkVersion = logVersion;
