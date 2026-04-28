@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = '1.0.2'; // Изменяйте при каждом обновлении
+const FILE_VERSION = '1.0.3'; // Изменяйте при каждом обновлении
 
 function logVersion() {
     console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -512,7 +512,8 @@ function getModuleExercises(moduleNum) {
           [22, 21], // Основание (часть 3)
           [21, 20] // Основание (часть 4)
         ]
-      }
+      },
+	    
     ],
     6: [
       {
@@ -738,6 +739,20 @@ function displayExercise(exercise) {
   }
 
   console.log("Displaying exercise:", exercise.title, exercise.type);
+
+// ============================================
+// ОТКЛЮЧЕНИЕ РИСОВАНИЯ ДЛЯ ГРАФИЧЕСКИХ ДИКТАНТОВ
+// ============================================
+if (canvas) {
+    if (exercise.type && exercise.type.startsWith('grid-')) {
+        // Для диктантов (Модуль 6) отключаем реакцию на касания
+        canvas.style.pointerEvents = 'none'; 
+    } else {
+        // Для остальных упражнений включаем рисование
+        canvas.style.pointerEvents = 'auto';
+    }
+}
+// ============================================
 
   // Блокируем скролл во время выполнения упражнения
   document.body.style.overflow = "hidden";
