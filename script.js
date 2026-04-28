@@ -4193,6 +4193,9 @@ function drawMirrorTreeTemplate() {
   }
 }
 
+//==============================================
+// УЗОР ПО ТОЧКАМ
+//==============================================
 function drawPatternDots() {
   // Инициализируем координаты точек в пиксели
   const sideWidth = canvas.width / 2;
@@ -4319,39 +4322,34 @@ function drawPatternDots() {
 }
 
 function getPointAtPosition(x, y) {
-  // Находит ближайшую точку в пределах допуска
-  const sideWidth = canvas.width / 2;
-  const sideHeight = canvas.height;
-  const rightOffset = sideWidth;
+    const sideWidth = canvas.width / 2;
+    const sideHeight = canvas.height;
+    const rightOffset = sideWidth;
+    
+    // Проверяем, что палец в правой половине
+    if (x < rightOffset) return null;
 
-  // Проверяем, находимся ли мы в правой половине (поле ввода)
-  if (x < rightOffset) {
-    return null;
-  }
+    const pixelPoints = patternPoints.map(point => ({
+        x: point.x * sideWidth,
+        y: point.y * sideHeight
+    }));
 
-  // Преобразуем относительные координаты в пиксели
-  const pixelPoints = patternPoints.map((point) => ({
-    x: point.x * sideWidth,
-    y: point.y * sideHeight
-  }));
+    // ✅ УВЕЛИЧЕН ДОПУСК до 40px для надежного захвата
+    let closestPoint = null;
+    let minDistance = 40; 
 
-  // Ищем ближайшую точку с увеличенным допуском (магнит 25px)
-  let closestPoint = null;
-  let minDistance = 25;
-
-  for (let i = 0; i < pixelPoints.length; i++) {
-    const px = rightOffset + pixelPoints[i].x;
-    const py = pixelPoints[i].y;
-
-    const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestPoint = i;
+    for (let i = 0; i < pixelPoints.length; i++) {
+        const px = rightOffset + pixelPoints[i].x;
+        const py = pixelPoints[i].y;
+        
+        const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = i;
+        }
     }
-  }
-
-  return closestPoint;
+    return closestPoint;
 }
 
 function isValidConnection(startIdx, endIdx) {
