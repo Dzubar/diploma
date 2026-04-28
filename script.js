@@ -812,14 +812,15 @@ function displayExercise(exercise) {
       regularControls.classList.add("hidden");
       gridControls.classList.remove("hidden");
 
-      // Управляем видимостью кнопки "Дальше" при инициализации
-      if (currentModule === 6) {
-         // В Модуле 6 (графические диктанты) кнопка "Дальше" всегда видна
-         document.getElementById("next-level-btn").classList.remove("hidden");
-      } else {
-         // В других модулях скрываем кнопку "Дальше" при инициализации
-         document.getElementById("next-level-btn").classList.add("hidden");
-      }
+// Управляем видимостью кнопки "Дальше" при инициализации
+// Проверяем тип упражнения, а не номер модуля (важно для смешанных занятий!)
+if (exercise.type && exercise.type.startsWith('grid-')) {
+    // Для графических диктантов кнопка "Дальше" всегда видна
+    document.getElementById('next-level-btn').classList.remove('hidden');
+} else {
+    // В других модулях скрываем кнопку "Дальше" при инициализации
+    document.getElementById('next-level-btn').classList.add('hidden');
+}
 
       // Обновляем счетчик шагов
       document.getElementById("current-step").textContent = "0";
