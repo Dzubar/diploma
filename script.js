@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.3"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.5"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1325,7 +1325,7 @@ function stopDrawing(e) {
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
-
+/*
 function getPosition(e) {
   const rect = canvas.getBoundingClientRect();
   const touch = e.touches ? e.touches[0] : e;
@@ -1334,7 +1334,22 @@ function getPosition(e) {
     y: touch.clientY - rect.top
   };
 }
+*/
+function getPosition(e) {
+  const rect = canvas.getBoundingClientRect();
 
+  // Для touchend используем changedTouches, для touchmove/start — touches, для мыши — само событие
+  const touch = e.changedTouches
+    ? e.changedTouches[0]
+    : e.touches
+      ? e.touches[0]
+      : e;
+
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top
+  };
+}
 // ============================================
 // МОДУЛЬ 5: ЗРИТЕЛЬНО-МОТОРНОЕ СООТНЕСЕНИЕ
 // ============================================
@@ -4642,6 +4657,7 @@ function drawPatternDotsWithCheck(pos) {
   drawPatternDots();
 }
 
+/*
 function stopDrawingPatternDots(e) {
   if (activePoint === null) return;
 
@@ -4692,6 +4708,58 @@ function stopDrawingPatternDots(e) {
   tempLine = null;
 
   // Перерисовываем холст
+  clearCanvas();
+  drawPatternDots();
+}
+*/
+
+function stopDrawingPatternDots(e) {
+  if (activePoint === null) return;
+  e.preventDefault();
+
+  // Получаем позицию ДО сброса переменных
+  const pos = getPosition(e);
+
+  // Сбрасываем tempLine сразу, чтобы пунктир исчез при перерисовке
+  const savedActivePoint = activePoint;
+  activePoint = null;
+  tempLine = null;
+
+  const endPointIdx = getPointAtPosition(pos.x, pos.y);
+
+  // Линия фиксируется только если палец отпущен рядом с точкой
+  if (endPointIdx !== null && endPointIdx !== savedActivePoint) {
+    if (isValidConnection(savedActivePoint, endPointIdx)) {
+      // Проверяем дубликаты
+      let alreadyExists = false;
+      for (let i = 0; i < userConnections.length; i++) {
+        const [a, b] = userConnections[i];
+        if (
+          (a === savedActivePoint && b === endPointIdx) ||
+          (a === endPointIdx && b === savedActivePoint)
+        ) {
+          alreadyExists = true;
+          break;
+        }
+      }
+
+      if (!alreadyExists) {
+        userConnections.push([savedActivePoint, endPointIdx]);
+
+        if (checkPatternCompletion()) {
+          completePatternDotsExercise();
+        } else {
+          showPatternFeedback("✓ Правильно!");
+        }
+      } else {
+        showPatternFeedback("⚠️ Уже соединено!");
+      }
+    } else {
+      showPatternFeedback("✗ Неправильно!");
+    }
+  }
+
+  // Перерисовываем холст (теперь без пунктира)
   clearCanvas();
   drawPatternDots();
 }
