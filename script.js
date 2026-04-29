@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.7b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.8b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1299,12 +1299,12 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
-// Модуль 7: Запретный цвет
-if (currentExercise && currentExercise.type === 'forbidden-color') {
+  // Модуль 7: Запретный цвет
+  if (currentExercise && currentExercise.type === "forbidden-color") {
     drawForbiddenColorWithCheck(pos);
     return;
-}
-	
+  }
+
   // Модуль 2, 3 и 4: Проверка границ дорожки
   if (
     currentExercise &&
@@ -1353,17 +1353,16 @@ function stopDrawing(e) {
     checkPathFinish();
   }
 
-	// Модуль 7: Запретный цвет
-if (currentExercise && currentExercise.type === 'forbidden-color') {
+  // Модуль 7: Запретный цвет
+  if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
     ctx.closePath();
     return;
-}
-	
+  }
+
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
-
 
 /*
 function getPosition(e) {
@@ -1375,7 +1374,6 @@ function getPosition(e) {
   };
 }
 */
-
 
 function getPosition(e) {
   const rect = canvas.getBoundingClientRect();
@@ -4827,20 +4825,24 @@ function showPatternFeedback(message) {
 
 function completePatternDotsExercise() {
   exerciseCompleted = true;
-
   const feedback = document.getElementById("feedback");
   feedback.textContent = "🎉 Отлично! Узор готов!";
   feedback.className = "feedback success";
   feedback.classList.remove("hidden");
 
-  // Показываем кнопку "Дальше"
+  // Показываем кнопку "Дальше" (для ручного перехода, если авто не сработает)
   document.getElementById("next-level-btn").classList.remove("hidden");
 
   // Обновляем статистику
   const endTime = Date.now();
   stats.successfulExercises++;
-  stats.totalTime += endTime - startTime; // Оставляем в миллисекундах
+  stats.totalTime += endTime - startTime;
   saveStats();
+
+  // ✅ АВТОМАТИЧЕСКИЙ ПЕРЕХОД к следующему упражнению через 1.5 секунды
+  setTimeout(() => {
+    nextExercise();
+  }, 1500);
 }
 
 // Остальные шаблоны (для других модулей)
@@ -5168,25 +5170,39 @@ function drawForbiddenColorWithCheck(pos) {
   ctx.stroke();
 
   // === Проверка: прошли ли мы через все синие островки ===
-  checkForbiddenColorCompletion(pos);
+  checkForbiddenColorCompletion();
 }
 
 // Проверка завершения: все ли синие островки посещены
-function checkForbiddenColorCompletion(pos) {
-  let allVisited = true;
+function checkForbiddenColorCompletion() {
+  // Используем Set для хранения индексов посещённых островков
+  let visitedIslands = new Set();
 
-  for (const island of currentExercise.blueIslands) {
-    const x = island.x * canvas.width;
-    const y = island.y * canvas.height;
-    const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+  // Проходим по ВЕСЬМУ пути, который нарисовал пользователь
+  for (let i = 0; i < userPath.length; i++) {
+    const pos = userPath[i];
 
-    if (dist > island.r + 10) {
-      allVisited = false;
-      break;
+    for (let j = 0; j < currentExercise.blueIslands.length; j++) {
+      const island = currentExercise.blueIslands[j];
+      const x = island.x * canvas.width;
+      const y = island.y * canvas.height;
+
+      // Проверяем расстояние от точки пути до центра островка
+      const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+
+      // Если попали в зону островка (радиус + 15px допуск для пальца)
+      if (dist <= island.r + 15) {
+        visitedIslands.add(j);
+      }
     }
   }
 
-  if (allVisited && userPath.length > 20) {
+  // Если количество уникальных посещённых островков равно общему количеству
+  // И линия достаточно длинная (защита от случайных касаний)
+  if (
+    visitedIslands.size === currentExercise.blueIslands.length &&
+    userPath.length > 20
+  ) {
     completeForbiddenColor();
   }
 }
