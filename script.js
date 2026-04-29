@@ -727,6 +727,24 @@ function getModuleExercises(moduleNum) {
         instruction: "Найди неправильный элемент"
       },
       {
+        title: "Запретный цвет",
+        type: "forbidden-color",
+        instruction: "Соедини все синие островки, но НЕ касайся жёлтых!",
+        // Синие островки (цель — соединить)
+        blueIslands: [
+          { x: 0.2, y: 0.3, r: 25 },
+          { x: 0.5, y: 0.5, r: 25 },
+          { x: 0.8, y: 0.7, r: 25 }
+        ],
+        // Жёлтые островки (запретные)
+        yellowIslands: [
+          { x: 0.4, y: 0.2, r: 30 },
+          { x: 0.6, y: 0.8, r: 28 }
+        ],
+        // RGB жёлтого цвета для проверки (цвет #FFEB3B)
+        forbiddenColor: { r: 255, g: 235, b: 59 }
+      },
+      {
         title: "Сравни узоры",
         type: "compare",
         instruction: "Выбери правильный узор"
@@ -1082,6 +1100,10 @@ function handleCanvasTouch(e) {
   // Модуль 5: Зрительно-моторное соотнесение
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
+  }
+  // Модуль 7: Запретный цвет
+  else if (currentExercise && currentExercise.type === "forbidden-color") {
+    startDrawingForbiddenColor(e);
   } else {
     startDrawing(e);
   }
@@ -1116,6 +1138,10 @@ function handleCanvasClick(e) {
   // Модуль 5: Зрительно-моторное соотнесение
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
+  }
+  // Модуль 7: Запретный цвет
+  else if (currentExercise && currentExercise.type === "forbidden-color") {
+    startDrawingForbiddenColor(e);
   } else {
     startDrawing(e);
   }
@@ -1273,7 +1299,12 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
-
+// Модуль 7: Запретный цвет
+if (currentExercise && currentExercise.type === 'forbidden-color') {
+    drawForbiddenColorWithCheck(pos);
+    return;
+}
+	
   // Модуль 2, 3 и 4: Проверка границ дорожки
   if (
     currentExercise &&
@@ -1322,9 +1353,18 @@ function stopDrawing(e) {
     checkPathFinish();
   }
 
+	// Модуль 7: Запретный цвет
+if (currentExercise && currentExercise.type === 'forbidden-color') {
+    isDrawing = false;
+    ctx.closePath();
+    return;
+}
+	
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
+
+
 /*
 function getPosition(e) {
   const rect = canvas.getBoundingClientRect();
@@ -1335,6 +1375,8 @@ function getPosition(e) {
   };
 }
 */
+
+
 function getPosition(e) {
   const rect = canvas.getBoundingClientRect();
 
@@ -2490,7 +2532,10 @@ function drawExerciseTemplate(exercise) {
     case "grid-triangle":
       drawGridTemplate();
       break;
-
+    // Модуль 7: Запретный цвет
+    case "forbidden-color":
+      drawForbiddenColorTemplate();
+      break;
     // Другие модули
     case "line":
       drawLineGuide();
@@ -4950,6 +4995,233 @@ function drawDefaultTemplate() {
   ctx.textAlign = "center";
   ctx.fillText("Упражнение в разработке", canvas.width / 2, canvas.height / 2);
 }
+
+// ============================================
+// Модуль 7: Запретный цвет: ЗАПРЕТНЫЙ ЦВЕТ
+// ============================================
+function drawForbiddenColorTemplate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Фон
+  ctx.fillStyle = "#f9f9f9";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // === ЗАПРЕТНЫЕ ОСТРОВКИ (жёлтые) ===
+  ctx.fillStyle = "#FFEB3B"; // Жёлтый
+  ctx.strokeStyle = "#FFC107"; // Тёмно-жёлтая обводка
+  ctx.lineWidth = 3;
+
+  for (const island of currentExercise.yellowIslands) {
+    const x = island.x * canvas.width;
+    const y = island.y * canvas.height;
+    const r = island.r;
+
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Знак "запрещено" внутри
+    ctx.strokeStyle = "#D32F2F";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.6, y - r * 0.6);
+    ctx.lineTo(x + r * 0.6, y + r * 0.6);
+    ctx.stroke();
+  }
+
+  // === ЦЕЛЕВЫЕ ОСТРОВКИ (синие) ===
+  ctx.fillStyle = "#2196F3"; // Синий
+  ctx.strokeStyle = "#1976D2"; // Тёмно-синяя обводка
+  ctx.lineWidth = 3;
+
+  for (const island of currentExercise.blueIslands) {
+    const x = island.x * canvas.width;
+    const y = island.y * canvas.height;
+    const r = island.r;
+
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Белая точка в центре
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#2196F3";
+  }
+
+  // === ПОДСКАЗКА: пунктир между синими островками ===
+  ctx.strokeStyle = "rgba(33, 150, 243, 0.4)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+
+  for (let i = 0; i < currentExercise.blueIslands.length - 1; i++) {
+    const a = currentExercise.blueIslands[i];
+    const b = currentExercise.blueIslands[i + 1];
+
+    ctx.beginPath();
+    ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+    ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
+// Проверка: является ли пиксель "запретным" цветом
+function isForbiddenColor(r, g, b, targetColor, tolerance = 30) {
+  return (
+    Math.abs(r - targetColor.r) < tolerance &&
+    Math.abs(g - targetColor.g) < tolerance &&
+    Math.abs(b - targetColor.b) < tolerance
+  );
+}
+
+// Проверка пути на пересечение с запретными зонами
+function checkForbiddenPath(pos) {
+  try {
+    const imageData = ctx.getImageData(
+      Math.floor(pos.x),
+      Math.floor(pos.y),
+      1,
+      1
+    ).data;
+
+    const r = imageData[0],
+      g = imageData[1],
+      b = imageData[2];
+    return isForbiddenColor(r, g, b, currentExercise.forbiddenColor);
+  } catch (e) {
+    // Если координаты вне холста — считаем безопасным
+    return false;
+  }
+}
+
+// Начало рисования для "Запретного цвета"
+function startDrawingForbiddenColor(e) {
+  e.preventDefault();
+  if (exerciseCompleted) return;
+
+  const pos = getPosition(e);
+
+  // Проверяем, что начало рисования рядом с синим островком
+  let nearBlueIsland = false;
+  for (const island of currentExercise.blueIslands) {
+    const x = island.x * canvas.width;
+    const y = island.y * canvas.height;
+    const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+    if (dist <= island.r + 20) {
+      nearBlueIsland = true;
+      break;
+    }
+  }
+
+  if (!nearBlueIsland) {
+    showForbiddenColorError("Начни от синего островка!");
+    return;
+  }
+
+  isDrawing = true;
+  userPath = [pos];
+
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  ctx.strokeStyle = "#4caf50"; // Зелёный для правильного пути
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
+
+// Рисование с проверкой на запретный цвет
+function drawForbiddenColorWithCheck(pos) {
+  if (!isDrawing) return;
+
+  userPath.push(pos);
+
+  // === ПРОВЕРКА НА ЗАПРЕТНЫЙ ЦВЕТ ===
+  if (checkForbiddenPath(pos)) {
+    // Касание жёлтого — ошибка!
+    ctx.strokeStyle = "#ff5252"; // Красный
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+
+    isDrawing = false;
+    ctx.closePath();
+
+    showForbiddenColorError("⚠️ Касание запретного цвета! Попробуй снова");
+    vibrateDevice();
+
+    // Сброс через 1.5 сек
+    setTimeout(() => {
+      clearCanvas();
+      drawForbiddenColorTemplate();
+      userPath = [];
+    }, 1500);
+    return;
+  }
+
+  // === Рисуем путь ===
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+
+  // === Проверка: прошли ли мы через все синие островки ===
+  checkForbiddenColorCompletion(pos);
+}
+
+// Проверка завершения: все ли синие островки посещены
+function checkForbiddenColorCompletion(pos) {
+  let allVisited = true;
+
+  for (const island of currentExercise.blueIslands) {
+    const x = island.x * canvas.width;
+    const y = island.y * canvas.height;
+    const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+
+    if (dist > island.r + 10) {
+      allVisited = false;
+      break;
+    }
+  }
+
+  if (allVisited && userPath.length > 20) {
+    completeForbiddenColor();
+  }
+}
+
+// Завершение упражнения
+function completeForbiddenColor() {
+  exerciseCompleted = true;
+  isDrawing = false;
+
+  const feedback = document.getElementById("feedback");
+  feedback.textContent =
+    "🎉 Отлично! Ты соединил все островки, не задев запретные!";
+  feedback.className = "feedback success";
+  feedback.classList.remove("hidden");
+
+  document.getElementById("next-level-btn").classList.remove("hidden");
+
+  setTimeout(() => {
+    nextExercise();
+  }, 2000);
+}
+
+// Ошибка для "Запретного цвета"
+function showForbiddenColorError(message) {
+  const feedback = document.getElementById("feedback");
+  feedback.textContent = message;
+  feedback.className = "feedback error";
+  feedback.classList.remove("hidden");
+
+  setTimeout(() => {
+    feedback.classList.add("hidden");
+  }, 2000);
+}
+
+// ============================================ КОНЕЦ МОДУЛЬ 7 ============================================ //
 
 // ============================================
 // МОДУЛЬ 6: ГРАФИЧЕСКИЕ ДИКТАНТЫ
