@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.10b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.11b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -729,23 +729,49 @@ function getModuleExercises(moduleNum) {
         ]
       }
     ],
-    7: [
-      {
-        title: "Найди ошибку",
-        type: "find-error",
-        instruction: "Найди неправильный элемент"
-      },
-      {
-        title: "Сравни узоры",
-        type: "compare",
-        instruction: "Выбери правильный узор"
-      },
-      {
-        title: "Запретный цвет",
-        type: "forbidden-color",
-        instruction: "Соедини все синие островки, но НЕ касайся жёлтых!"
-      }
-    ]
+   7: [{
+        title: 'Найди ошибку',
+        type: 'find-error',
+        instruction: 'Найди неправильный элемент'
+    }, {
+        title: 'Сравни узоры',
+        type: 'compare',
+        instruction: 'Выбери правильный узор'
+    }, {
+        title: 'Запретный цвет',
+        type: 'forbidden-color',
+        instruction: 'Соедини все синие островки, но НЕ касайся жёлтых!',
+        blueIslands: [{
+                x: 100,
+                y: 150,
+                r: 25
+            }, {
+                x: 300,
+                y: 250,
+                r: 25
+            }, {
+                x: 200,
+                y: 400,
+                r: 25
+            }
+        ],
+        yellowIslands: [{
+                x: 150,
+                y: 200,
+                r: 30
+            }, {
+                x: 250,
+                y: 350,
+                r: 30
+            }
+        ],
+        forbiddenColor: {
+            r: 255,
+            g: 235,
+            b: 59
+        }
+    }
+],
   };
 
   return modules[moduleNum] || modules[1];
@@ -2519,10 +2545,10 @@ function drawExerciseTemplate(exercise) {
       drawGridTemplate();
       break;
 
-    // Модуль 7: Запретный цвет
-    case "forbidden-color":
-      drawForbiddenColorTemplate();
-      break;
+// Модуль 7: Запретный цвет
+case 'forbidden-color':
+    drawForbiddenColorTemplate();
+    break;
 
     // Другие модули
     case "line":
