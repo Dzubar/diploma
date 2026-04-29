@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.9b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.10b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -729,49 +729,23 @@ function getModuleExercises(moduleNum) {
         ]
       }
     ],
-    7: [{
-        title: 'Найди ошибку',
-        type: 'find-error',
-        instruction: 'Найди неправильный элемент'
-    }, {
-        title: 'Сравни узоры',
-        type: 'compare',
-        instruction: 'Выбери правильный узор'
-    }, {
-        title: 'Запретный цвет',
-        type: 'forbidden-color',
-        instruction: 'Соедини все синие островки, но НЕ касайся жёлтых!',
-        blueIslands: [{
-                x: 0.2,
-                y: 0.3,
-                r: 25
-            }, {
-                x: 0.5,
-                y: 0.5,
-                r: 25
-            }, {
-                x: 0.8,
-                y: 0.7,
-                r: 25
-            }
-        ],
-        yellowIslands: [{
-                x: 0.4,
-                y: 0.2,
-                r: 30
-            }, {
-                x: 0.6,
-                y: 0.8,
-                r: 28
-            }
-        ],
-        forbiddenColor: {
-            r: 255,
-            g: 235,
-            b: 59
-        }
-    }
-],
+    7: [
+      {
+        title: "Найди ошибку",
+        type: "find-error",
+        instruction: "Найди неправильный элемент"
+      },
+      {
+        title: "Сравни узоры",
+        type: "compare",
+        instruction: "Выбери правильный узор"
+      },
+      {
+        title: "Запретный цвет",
+        type: "forbidden-color",
+        instruction: "Соедини все синие островки, но НЕ касайся жёлтых!"
+      }
+    ]
   };
 
   return modules[moduleNum] || modules[1];
@@ -966,12 +940,15 @@ function displayExercise(exercise) {
   }
 
   if (canvas && ctx) {
-    // ИСПРАВЛЕНИЕ ОШИБКИ 1: Принудительно обновляем размеры canvas после показа экрана
     setTimeout(() => {
       resizeCanvas();
       clearCanvas();
-      drawExerciseTemplate(exercise);
-    }, 50); // Даем время на отрисовку DOM
+      // Генерируем случайные островки ПЕРЕД отрисовкой для "Запретного цвета"
+      if (currentExercise && currentExercise.type === "forbidden-color") {
+        generateForbiddenColorIslands();
+      }
+      drawExerciseTemplate(currentExercise);
+    }, 50);
   } else {
     console.error("Canvas not initialized!");
   }
@@ -1309,6 +1286,7 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
+
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     drawForbiddenColorWithCheck(pos);
@@ -1350,6 +1328,13 @@ function stopDrawing(e) {
     return;
   }
 
+  // Модуль 7: Запретный цвет
+  if (currentExercise && currentExercise.type === "forbidden-color") {
+    isDrawing = false;
+    ctx.closePath();
+    return;
+  }
+
   // Модуль 2, 3 и 4: Проверка достижения финиша
   if (
     currentExercise &&
@@ -1361,13 +1346,6 @@ function stopDrawing(e) {
       currentExercise.type === "combined-chain")
   ) {
     checkPathFinish();
-  }
-
-  // Модуль 7: Запретный цвет
-  if (currentExercise && currentExercise.type === "forbidden-color") {
-    isDrawing = false;
-    ctx.closePath();
-    return;
   }
 
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
@@ -2540,10 +2518,12 @@ function drawExerciseTemplate(exercise) {
     case "grid-triangle":
       drawGridTemplate();
       break;
+
     // Модуль 7: Запретный цвет
     case "forbidden-color":
       drawForbiddenColorTemplate();
       break;
+
     // Другие модули
     case "line":
       drawLineGuide();
@@ -5012,74 +4992,63 @@ function drawDefaultTemplate() {
 // Модуль 7: Запретный цвет: ЗАПРЕТНЫЙ ЦВЕТ
 // ============================================
 function drawForbiddenColorTemplate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Фон
-  ctx.fillStyle = "#f9f9f9";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // === ЗАПРЕТНЫЕ ОСТРОВКИ (жёлтые) ===
-  ctx.fillStyle = "#FFEB3B"; // Жёлтый
-  ctx.strokeStyle = "#FFC107"; // Тёмно-жёлтая обводка
+  // Рисуем желтые (запретные)
+  ctx.fillStyle = "#FFEB3B";
+  ctx.strokeStyle = "#FBC02D";
   ctx.lineWidth = 3;
-
-  for (const island of currentExercise.yellowIslands) {
-    const x = island.x * canvas.width;
-    const y = island.y * canvas.height;
-    const r = island.r;
-
+  for (let island of currentExercise.yellowIslands) {
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(island.x, island.y, island.r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Знак "запрещено" внутри
+    // Крестик внутри
     ctx.strokeStyle = "#D32F2F";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x - r * 0.6, y - r * 0.6);
-    ctx.lineTo(x + r * 0.6, y + r * 0.6);
+    ctx.moveTo(island.x - 10, island.y - 10);
+    ctx.lineTo(island.x + 10, island.y + 10);
+    ctx.moveTo(island.x + 10, island.y - 10);
+    ctx.lineTo(island.x - 10, island.y + 10);
     ctx.stroke();
   }
 
-  // === ЦЕЛЕВЫЕ ОСТРОВКИ (синие) ===
-  ctx.fillStyle = "#2196F3"; // Синий
-  ctx.strokeStyle = "#1976D2"; // Тёмно-синяя обводка
+  // Рисуем синие (цели)
+  ctx.fillStyle = "#2196F3";
+  ctx.strokeStyle = "#1976D2";
   ctx.lineWidth = 3;
-
-  for (const island of currentExercise.blueIslands) {
-    const x = island.x * canvas.width;
-    const y = island.y * canvas.height;
-    const r = island.r;
-
+  for (let island of currentExercise.blueIslands) {
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(island.x, island.y, island.r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Белая точка в центре
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#2196F3";
   }
+}
 
-  // === ПОДСКАЗКА: пунктир между синими островками ===
-  ctx.strokeStyle = "rgba(33, 150, 243, 0.4)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 6]);
+// Обработка касания для этого упражнения
+function handleForbiddenColorTouch(e) {
+  e.preventDefault();
+  const pos = getPosition(e);
 
-  for (let i = 0; i < currentExercise.blueIslands.length - 1; i++) {
-    const a = currentExercise.blueIslands[i];
-    const b = currentExercise.blueIslands[i + 1];
-
-    ctx.beginPath();
-    ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-    ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-    ctx.stroke();
+  // Проверка: коснулись ли желтого?
+  for (let island of currentExercise.yellowIslands) {
+    const dist = Math.hypot(pos.x - island.x, pos.y - island.y);
+    if (dist < island.r) {
+      // ОШИБКА!
+      vibrateDevice();
+      const feedback = document.getElementById("feedback");
+      feedback.textContent = "⚠️ Нельзя касаться желтых! Попробуй снова";
+      feedback.className = "feedback error";
+      feedback.classList.remove("hidden");
+      setTimeout(() => {
+        feedback.classList.add("hidden");
+        // Перегенерируем уровень при ошибке
+        generateForbiddenColorIslands();
+        clearCanvas();
+        drawExerciseTemplate(currentExercise);
+      }, 1500);
+      return;
+    }
   }
-  ctx.setLineDash([]);
 }
 
 // Проверка: является ли пиксель "запретным" цветом
@@ -5241,74 +5210,79 @@ function showForbiddenColorError(message) {
 
 // Генерация случайных островков для "Запретного цвета"
 function generateForbiddenColorIslands() {
-  const w = canvas.width;
-  const h = canvas.height;
-  const padding = 60;
-  const minGap = 75; // Минимальное расстояние между центрами
+  const padding = 50;
+  const minDist = 60; // Минимальное расстояние между центрами
 
-  let blueIslands = [];
-  let yellowIslands = [];
+  // Очищаем старые данные
+  currentExercise.blueIslands = [];
+  currentExercise.yellowIslands = [];
 
-  // Случайное количество: синие 3-4, желтые 2-3
-  const numBlue = 3 + Math.floor(Math.random() * 2);
-  const numYellow = 2 + Math.floor(Math.random() * 2);
-
-  // Проверка пересечений
-  const isOverlapping = (x, y, r, list) => {
-    for (let item of list) {
-      if (Math.hypot(x - item.x, y - item.y) < r + item.r + minGap) return true;
-    }
-    return false;
-  };
-
-  // 1. Размещаем синие островки с уклоном слева-направо
-  for (let i = 0; i < numBlue; i++) {
+  // 1. Генерируем синие (цели) - от 3 до 4 штук
+  const countBlue = 3 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < countBlue; i++) {
     let placed = false;
     let attempts = 0;
-    while (!placed && attempts < 300) {
-      const r = 20 + Math.random() * 15;
+    while (!placed && attempts < 100) {
+      const r = 20 + Math.random() * 10;
+      const x =
+        padding + r + Math.random() * (canvas.width - 2 * padding - 2 * r);
+      const y =
+        padding + r + Math.random() * (canvas.height - 2 * padding - 2 * r);
 
-      // bias: первый слева, последний справа, средние разбросаны
-      let xMin = padding;
-      let xMax = w - padding;
-      if (i === 0) xMax = w * 0.35;
-      if (i === numBlue - 1) xMin = w * 0.65;
+      // Проверка на наложение
+      let overlap = false;
+      const allIslands = [
+        ...currentExercise.blueIslands,
+        ...currentExercise.yellowIslands
+      ];
+      for (let item of allIslands) {
+        const dist = Math.hypot(x - item.x, y - item.y);
+        if (dist < r + item.r + minDist) {
+          overlap = true;
+          break;
+        }
+      }
 
-      const x = xMin + Math.random() * (xMax - xMin);
-      const y = padding + r + Math.random() * (h - 2 * padding - 2 * r);
-
-      if (
-        !isOverlapping(x, y, r, blueIslands) &&
-        !isOverlapping(x, y, r, yellowIslands)
-      ) {
-        blueIslands.push({ x: x / w, y: y / h, r }); // Сохраняем относительные координаты
+      if (!overlap) {
+        currentExercise.blueIslands.push({ x, y, r });
         placed = true;
       }
       attempts++;
     }
   }
 
-  // 2. Размещаем желтые островки-препятствия
-  for (let i = 0; i < numYellow; i++) {
+  // 2. Генерируем желтые (препятствия) - от 2 до 3 штук
+  const countYellow = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < countYellow; i++) {
     let placed = false;
     let attempts = 0;
-    while (!placed && attempts < 300) {
-      const r = 25 + Math.random() * 15;
-      const x = padding + r + Math.random() * (w - 2 * padding - 2 * r);
-      const y = padding + r + Math.random() * (h - 2 * padding - 2 * r);
+    while (!placed && attempts < 100) {
+      const r = 25 + Math.random() * 10;
+      const x =
+        padding + r + Math.random() * (canvas.width - 2 * padding - 2 * r);
+      const y =
+        padding + r + Math.random() * (canvas.height - 2 * padding - 2 * r);
 
-      if (
-        !isOverlapping(x, y, r, blueIslands) &&
-        !isOverlapping(x, y, r, yellowIslands)
-      ) {
-        yellowIslands.push({ x: x / w, y: y / h, r });
+      let overlap = false;
+      const allIslands = [
+        ...currentExercise.blueIslands,
+        ...currentExercise.yellowIslands
+      ];
+      for (let item of allIslands) {
+        const dist = Math.hypot(x - item.x, y - item.y);
+        if (dist < r + item.r + minDist) {
+          overlap = true;
+          break;
+        }
+      }
+
+      if (!overlap) {
+        currentExercise.yellowIslands.push({ x, y, r });
         placed = true;
       }
       attempts++;
     }
   }
-
-  return { blueIslands, yellowIslands };
 }
 
 // ============================================ КОНЕЦ МОДУЛЬ 7 ============================================ //
