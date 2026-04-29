@@ -729,40 +729,49 @@ function getModuleExercises(moduleNum) {
         ]
       }
     ],
-    7: [
-      {
-        title: "Найди ошибку",
-        type: "find-error",
-        instruction: "Найди неправильный элемент"
-      },
-      {
-        title: "Запретный цвет",
-        type: "forbidden-color",
-        instruction: "Соедини все синие островки, но НЕ касайся жёлтых!",
-        // Синие островки (цель — соединить)
-        // Массивы blueIslands и yellowIslands УДАЛИТЬ отсюда
-        // Они будут создаваться автоматически функцией generateForbiddenColorIslands()
-        // RGB жёлтого цвета для проверки (цвет #FFEB3B)
-        forbiddenColor: { r: 255, g: 235, b: 59 }
-      },
-      {
-        title: "Сравни узоры",
-        type: "compare",
-        instruction: "Выбери правильный узор"
-      }
-    ],
-    8: [
-      {
-        title: "Укрась дорожку",
-        type: "decorate",
-        instruction: "Укрась дорожку точками"
-      },
-      {
-        title: "Соедини пары",
-        type: "connect",
-        instruction: "Соедини одинаковые фигуры"
-      }
-    ]
+    7: [{
+        title: 'Найди ошибку',
+        type: 'find-error',
+        instruction: 'Найди неправильный элемент'
+    }, {
+        title: 'Сравни узоры',
+        type: 'compare',
+        instruction: 'Выбери правильный узор'
+    }, {
+        title: 'Запретный цвет',
+        type: 'forbidden-color',
+        instruction: 'Соедини все синие островки, но НЕ касайся жёлтых!',
+        blueIslands: [{
+                x: 0.2,
+                y: 0.3,
+                r: 25
+            }, {
+                x: 0.5,
+                y: 0.5,
+                r: 25
+            }, {
+                x: 0.8,
+                y: 0.7,
+                r: 25
+            }
+        ],
+        yellowIslands: [{
+                x: 0.4,
+                y: 0.2,
+                r: 30
+            }, {
+                x: 0.6,
+                y: 0.8,
+                r: 28
+            }
+        ],
+        forbiddenColor: {
+            r: 255,
+            g: 235,
+            b: 59
+        }
+    }
+],
   };
 
   return modules[moduleNum] || modules[1];
