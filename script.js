@@ -68,11 +68,11 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = '1.0.3'; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.2"; // Изменяйте при каждом обновлении
 
 function logVersion() {
-    console.log(`📄 script.js version: ${FILE_VERSION}`);
-    console.log(` Build: ${new Date().toLocaleDateString()}`);
+  console.log(`📄 script.js version: ${FILE_VERSION}`);
+  console.log(` Build: ${new Date().toLocaleDateString()}`);
 }
 
 // Инициализация пользователя (первый вход / повторный)
@@ -137,7 +137,7 @@ function saveStats() {
 document.addEventListener("DOMContentLoaded", () => {
   loadStats();
   initUser(); //ДОБАВЛЕНО: инициализация пользователя
-	logVersion(); // ← ДОБАВЛЕНО: вывод версии при загрузке
+  logVersion(); // ← ДОБАВЛЕНО: вывод версии при загрузке
   // Не инициализируем canvas сразу, только когда он понадобится
 });
 
@@ -382,7 +382,7 @@ function getModuleExercises(moduleNum) {
       }
     ],
     5: [
-      {
+      /*{
         title: "Зеркальная елочка",
         type: "mirror-tree",
         instruction: "Повтори елочку справа, глядя на образец слева",
@@ -466,6 +466,52 @@ function getModuleExercises(moduleNum) {
             subTaskIndex: 2
           } // основание ствола
         ]
+      },*/
+
+      {
+        title: "Рисуем Ромб",
+        type: "pattern-dots",
+        instruction: "Соедини точки, чтобы получился ромб",
+        gridSize: 5,
+        startPoint: 2, // Начинаем с верхней точки
+        points: [
+          // Сетка 5x5 (стандартная)
+          { x: 0.1, y: 0.1 },
+          { x: 0.3, y: 0.1 },
+          { x: 0.5, y: 0.1 },
+          { x: 0.7, y: 0.1 },
+          { x: 0.9, y: 0.1 },
+          { x: 0.1, y: 0.3 },
+          { x: 0.3, y: 0.3 },
+          { x: 0.5, y: 0.3 },
+          { x: 0.7, y: 0.3 },
+          { x: 0.9, y: 0.3 },
+          { x: 0.1, y: 0.5 },
+          { x: 0.3, y: 0.5 },
+          { x: 0.5, y: 0.5 },
+          { x: 0.7, y: 0.5 },
+          { x: 0.9, y: 0.5 },
+          { x: 0.1, y: 0.7 },
+          { x: 0.3, y: 0.7 },
+          { x: 0.5, y: 0.7 },
+          { x: 0.7, y: 0.7 },
+          { x: 0.9, y: 0.7 },
+          { x: 0.1, y: 0.9 },
+          { x: 0.3, y: 0.9 },
+          { x: 0.5, y: 0.9 },
+          { x: 0.7, y: 0.9 },
+          { x: 0.9, y: 0.9 }
+        ],
+        pattern: [
+          [2, 8],
+          [8, 14],
+          [14, 18],
+          [18, 22],
+          [22, 16],
+          [16, 10],
+          [10, 6],
+          [6, 2]
+        ]
       },
       {
         title: "Узор по точкам",
@@ -513,7 +559,51 @@ function getModuleExercises(moduleNum) {
           [21, 20] // Основание (часть 4)
         ]
       },
-	    
+      {
+        title: "Рисуем Домик",
+        type: "pattern-dots",
+        instruction: "Начни с синей точки и построй домик",
+        gridSize: 5,
+        startPoint: 20, // Начинаем с левого нижнего угла
+        points: [
+          // Сетка 5×5 (стандартная)
+          { x: 0.1, y: 0.1 },
+          { x: 0.3, y: 0.1 },
+          { x: 0.5, y: 0.1 },
+          { x: 0.7, y: 0.1 },
+          { x: 0.9, y: 0.1 },
+          { x: 0.1, y: 0.3 },
+          { x: 0.3, y: 0.3 },
+          { x: 0.5, y: 0.3 },
+          { x: 0.7, y: 0.3 },
+          { x: 0.9, y: 0.3 },
+          { x: 0.1, y: 0.5 },
+          { x: 0.3, y: 0.5 },
+          { x: 0.5, y: 0.5 },
+          { x: 0.7, y: 0.5 },
+          { x: 0.9, y: 0.5 },
+          { x: 0.1, y: 0.7 },
+          { x: 0.3, y: 0.7 },
+          { x: 0.5, y: 0.7 },
+          { x: 0.7, y: 0.7 },
+          { x: 0.9, y: 0.7 },
+          { x: 0.1, y: 0.9 },
+          { x: 0.3, y: 0.9 },
+          { x: 0.5, y: 0.9 },
+          { x: 0.7, y: 0.9 },
+          { x: 0.9, y: 0.9 }
+        ],
+        pattern: [
+          // Стены домика (квадрат)
+          [20, 24], // низ: лево → право
+          [24, 14], // право: низ → верх
+          [14, 10], // верх: право → лево
+          [10, 20], // лево: верх → низ (замкнули квадрат)
+          // Крыша (треугольник)
+          [10, 7], // левый скат: угол → вершина
+          [7, 14] // правый скат: вершина → угол
+        ]
+      }
     ],
     6: [
       {
@@ -740,19 +830,19 @@ function displayExercise(exercise) {
 
   console.log("Displaying exercise:", exercise.title, exercise.type);
 
-// ============================================
-// ОТКЛЮЧЕНИЕ РИСОВАНИЯ ДЛЯ ГРАФИЧЕСКИХ ДИКТАНТОВ
-// ============================================
-if (canvas) {
-    if (exercise.type && exercise.type.startsWith('grid-')) {
-        // Для диктантов (Модуль 6) отключаем реакцию на касания
-        canvas.style.pointerEvents = 'none'; 
+  // ============================================
+  // ОТКЛЮЧЕНИЕ РИСОВАНИЯ ДЛЯ ГРАФИЧЕСКИХ ДИКТАНТОВ
+  // ============================================
+  if (canvas) {
+    if (exercise.type && exercise.type.startsWith("grid-")) {
+      // Для диктантов (Модуль 6) отключаем реакцию на касания
+      canvas.style.pointerEvents = "none";
     } else {
-        // Для остальных упражнений включаем рисование
-        canvas.style.pointerEvents = 'auto';
+      // Для остальных упражнений включаем рисование
+      canvas.style.pointerEvents = "auto";
     }
-}
-// ============================================
+  }
+  // ============================================
 
   // Блокируем скролл во время выполнения упражнения
   document.body.style.overflow = "hidden";
@@ -4343,37 +4433,63 @@ function drawPatternDots() {
     );
     ctx.fill();
   }
+  // ============================================
+  // ПОДСКАЗКА: Подсветка следующей целевой точки
+  // ============================================
+  if (!exerciseCompleted) {
+    const nextTarget = getNextTargetPoint();
+    if (nextTarget !== null) {
+      const targetPoint = pixelPoints[nextTarget];
+      const drawX = rightOffset + targetPoint.x;
+      const drawY = targetPoint.y;
+
+      // Пульсирующее оранжевое кольцо вокруг целевой точки
+      ctx.strokeStyle = "rgba(255, 152, 0, 0.8)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 4]); // Пунктирное кольцо
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, dotRadius + 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Лёгкая внутренняя подсветка
+      ctx.fillStyle = "rgba(255, 152, 0, 0.15)";
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, dotRadius + 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 function getPointAtPosition(x, y) {
-    const sideWidth = canvas.width / 2;
-    const sideHeight = canvas.height;
-    const rightOffset = sideWidth;
-    
-    // Проверяем, что палец в правой половине
-    if (x < rightOffset) return null;
+  const sideWidth = canvas.width / 2;
+  const sideHeight = canvas.height;
+  const rightOffset = sideWidth;
 
-    const pixelPoints = patternPoints.map(point => ({
-        x: point.x * sideWidth,
-        y: point.y * sideHeight
-    }));
+  // Проверяем, что палец в правой половине
+  if (x < rightOffset) return null;
 
-    // ✅ УВЕЛИЧЕН ДОПУСК до 40px для надежного захвата
-    let closestPoint = null;
-    let minDistance = 40; 
+  const pixelPoints = patternPoints.map((point) => ({
+    x: point.x * sideWidth,
+    y: point.y * sideHeight
+  }));
 
-    for (let i = 0; i < pixelPoints.length; i++) {
-        const px = rightOffset + pixelPoints[i].x;
-        const py = pixelPoints[i].y;
-        
-        const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
-        
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestPoint = i;
-        }
+  // ✅ УВЕЛИЧЕН ДОПУСК до 40px для надежного захвата
+  let closestPoint = null;
+  let minDistance = 40;
+
+  for (let i = 0; i < pixelPoints.length; i++) {
+    const px = rightOffset + pixelPoints[i].x;
+    const py = pixelPoints[i].y;
+
+    const distance = Math.sqrt(Math.pow(x - px, 2) + Math.pow(y - py, 2));
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestPoint = i;
     }
-    return closestPoint;
+  }
+  return closestPoint;
 }
 
 function isValidConnection(startIdx, endIdx) {
@@ -4387,6 +4503,74 @@ function isValidConnection(startIdx, endIdx) {
     }
   }
   return false;
+}
+
+// Определяет следующую целевую точку для подсветки-подсказки
+function getNextTargetPoint() {
+  // Если упражнение завершено - нет подсказки
+  if (exerciseCompleted) return null;
+
+  // Если пользователь держит точку - ищем соединение от этой точки
+  if (activePoint !== null) {
+    for (let i = 0; i < patternReference.length; i++) {
+      const [a, b] = patternReference[i];
+
+      // Проверяем, есть ли такое соединение у пользователя (в любом порядке)
+      let connectionExists = false;
+      for (let j = 0; j < userConnections.length; j++) {
+        const [ua, ub] = userConnections[j];
+        if ((ua === a && ub === b) || (ua === b && ub === a)) {
+          connectionExists = true;
+          break;
+        }
+      }
+
+      // Если соединение ещё не проведено и одна из его точек - активная
+      if (!connectionExists && activePoint === a) {
+        return b;
+      }
+      if (!connectionExists && activePoint === b) {
+        return a;
+      }
+    }
+    return null; // Не нашли подходящего соединения от активной точки
+  }
+
+  // Если активная точка не выбрана - ищем первое непройденное соединение,
+  // которое начинается со startPoint или соединяется с уже пройденными точками
+  const usedPoints = new Set();
+  for (let i = 0; i < userConnections.length; i++) {
+    const [a, b] = userConnections[i];
+    usedPoints.add(a);
+    usedPoints.add(b);
+  }
+  // startPoint всегда считается использованной
+  if (patternStartPoint !== null) {
+    usedPoints.add(patternStartPoint);
+  }
+
+  for (let i = 0; i < patternReference.length; i++) {
+    const [a, b] = patternReference[i];
+
+    // Проверяем, есть ли такое соединение у пользователя
+    let connectionExists = false;
+    for (let j = 0; j < userConnections.length; j++) {
+      const [ua, ub] = userConnections[j];
+      if ((ua === a && ub === b) || (ua === b && ub === a)) {
+        connectionExists = true;
+        break;
+      }
+    }
+
+    if (!connectionExists) {
+      // Если одно из конечных точек уже использовано - подсвечиваем другую
+      if (usedPoints.has(a)) return b;
+      if (usedPoints.has(b)) return a;
+    }
+  }
+
+  // Если ничего не нашли - возвращаем startPoint как первую цель
+  return patternStartPoint;
 }
 
 function checkPatternCompletion() {
