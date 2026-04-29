@@ -4714,56 +4714,58 @@ function stopDrawingPatternDots(e) {
 */
 
 function stopDrawingPatternDots(e) {
-    if (activePoint === null) return;
-    e.preventDefault();
+  if (activePoint === null) return;
+  e.preventDefault();
 
-    // ✅ ОБЪЯВЛЯЕМ savedActivePoint ПЕРЕД использованием
-    const savedActivePoint = activePoint;
-    
-    const pos = getPosition(e);
-    const endPointIdx = getPointAtPosition(pos.x, pos.y);
+  // ✅ ОБЪЯВЛЯЕМ savedActivePoint ПЕРЕД использованием
+  const savedActivePoint = activePoint;
 
-    // Линия фиксируется только если палец находится рядом с точкой
-    if (endPointIdx !== null && endPointIdx !== savedActivePoint) {
-        // Проверяем, валидно ли это соединение
-        if (isValidConnection(savedActivePoint, endPointIdx)) {
-            // Проверяем, не добавлено ли уже это соединение
-            let alreadyExists = false;
-            for (let i = 0; i < userConnections.length; i++) {
-                const [a, b] = userConnections[i];
-                if ((a === savedActivePoint && b === endPointIdx) || 
-                    (a === endPointIdx && b === savedActivePoint)) {
-                    alreadyExists = true;
-                    break;
-                }
-            }
-            
-            if (!alreadyExists) {
-                // Добавляем соединение
-                userConnections.push([savedActivePoint, endPointIdx]);
-                
-                // Проверяем, завершен ли узор (все 8 сегментов)
-                if (checkPatternCompletion()) {
-                    completePatternDotsExercise();
-                } else {
-                    // Показываем успех для этого соединения
-                    showPatternFeedback('✓ Правильно!');
-                }
-            } else {
-                showPatternFeedback('⚠️ Уже соединено!');
-            }
-        } else {
-            showPatternFeedback('✗ Неправильно!');
+  const pos = getPosition(e);
+  const endPointIdx = getPointAtPosition(pos.x, pos.y);
+
+  // Линия фиксируется только если палец находится рядом с точкой
+  if (endPointIdx !== null && endPointIdx !== savedActivePoint) {
+    // Проверяем, валидно ли это соединение
+    if (isValidConnection(savedActivePoint, endPointIdx)) {
+      // Проверяем, не добавлено ли уже это соединение
+      let alreadyExists = false;
+      for (let i = 0; i < userConnections.length; i++) {
+        const [a, b] = userConnections[i];
+        if (
+          (a === savedActivePoint && b === endPointIdx) ||
+          (a === endPointIdx && b === savedActivePoint)
+        ) {
+          alreadyExists = true;
+          break;
         }
-    }
-    
-    // Сбрасываем активную точку
-    activePoint = null;
-    tempLine = null;
+      }
 
-    // Перерисовываем холст
-    clearCanvas();
-    drawPatternDots();
+      if (!alreadyExists) {
+        // Добавляем соединение
+        userConnections.push([savedActivePoint, endPointIdx]);
+
+        // Проверяем, завершен ли узор (все 8 сегментов)
+        if (checkPatternCompletion()) {
+          completePatternDotsExercise();
+        } else {
+          // Показываем успех для этого соединения
+          showPatternFeedback("✓ Правильно!");
+        }
+      } else {
+        showPatternFeedback("⚠️ Уже соединено!");
+      }
+    } else {
+      showPatternFeedback("✗ Неправильно!");
+    }
+  }
+
+  // Сбрасываем активную точку
+  activePoint = null;
+  tempLine = null;
+
+  // Перерисовываем холст
+  clearCanvas();
+  drawPatternDots();
 }
 
 function showPatternFeedback(message) {
