@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.6b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.7b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -4714,63 +4714,56 @@ function stopDrawingPatternDots(e) {
 */
 
 function stopDrawingPatternDots(e) {
+    if (activePoint === null) return;
+    e.preventDefault();
 
-console.log('Touch debug:', {
-    type: e.type,
-    touches: e.touches?.length,
-    changedTouches: e.changedTouches?.length,
-    activePoint: savedActivePoint,
-    pos: pos
-});
-  
-  if (activePoint === null) return;
-  e.preventDefault();
+    // ✅ ОБЪЯВЛЯЕМ savedActivePoint ПЕРЕД использованием
+    const savedActivePoint = activePoint;
+    
+    const pos = getPosition(e);
+    const endPointIdx = getPointAtPosition(pos.x, pos.y);
 
-  // Получаем позицию ДО сброса переменных
-  const pos = getPosition(e);
-
-  // Сбрасываем tempLine сразу, чтобы пунктир исчез при перерисовке
-  const savedActivePoint = activePoint;
-  activePoint = null;
-  tempLine = null;
-
-  const endPointIdx = getPointAtPosition(pos.x, pos.y);
-
-  // Линия фиксируется только если палец отпущен рядом с точкой
-  if (endPointIdx !== null && endPointIdx !== savedActivePoint) {
-    if (isValidConnection(savedActivePoint, endPointIdx)) {
-      // Проверяем дубликаты
-      let alreadyExists = false;
-      for (let i = 0; i < userConnections.length; i++) {
-        const [a, b] = userConnections[i];
-        if (
-          (a === savedActivePoint && b === endPointIdx) ||
-          (a === endPointIdx && b === savedActivePoint)
-        ) {
-          alreadyExists = true;
-          break;
-        }
-      }
-
-      if (!alreadyExists) {
-        userConnections.push([savedActivePoint, endPointIdx]);
-
-        if (checkPatternCompletion()) {
-          completePatternDotsExercise();
+    // Линия фиксируется только если палец находится рядом с точкой
+    if (endPointIdx !== null && endPointIdx !== savedActivePoint) {
+        // Проверяем, валидно ли это соединение
+        if (isValidConnection(savedActivePoint, endPointIdx)) {
+            // Проверяем, не добавлено ли уже это соединение
+            let alreadyExists = false;
+            for (let i = 0; i < userConnections.length; i++) {
+                const [a, b] = userConnections[i];
+                if ((a === savedActivePoint && b === endPointIdx) || 
+                    (a === endPointIdx && b === savedActivePoint)) {
+                    alreadyExists = true;
+                    break;
+                }
+            }
+            
+            if (!alreadyExists) {
+                // Добавляем соединение
+                userConnections.push([savedActivePoint, endPointIdx]);
+                
+                // Проверяем, завершен ли узор (все 8 сегментов)
+                if (checkPatternCompletion()) {
+                    completePatternDotsExercise();
+                } else {
+                    // Показываем успех для этого соединения
+                    showPatternFeedback('✓ Правильно!');
+                }
+            } else {
+                showPatternFeedback('⚠️ Уже соединено!');
+            }
         } else {
-          showPatternFeedback("✓ Правильно!");
+            showPatternFeedback('✗ Неправильно!');
         }
-      } else {
-        showPatternFeedback("⚠️ Уже соединено!");
-      }
-    } else {
-      showPatternFeedback("✗ Неправильно!");
     }
-  }
+    
+    // Сбрасываем активную точку
+    activePoint = null;
+    tempLine = null;
 
-  // Перерисовываем холст (теперь без пунктира)
-  clearCanvas();
-  drawPatternDots();
+    // Перерисовываем холст
+    clearCanvas();
+    drawPatternDots();
 }
 
 function showPatternFeedback(message) {
