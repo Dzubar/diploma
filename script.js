@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.5"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.6b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -4714,6 +4714,15 @@ function stopDrawingPatternDots(e) {
 */
 
 function stopDrawingPatternDots(e) {
+
+console.log('Touch debug:', {
+    type: e.type,
+    touches: e.touches?.length,
+    changedTouches: e.changedTouches?.length,
+    activePoint: savedActivePoint,
+    pos: pos
+});
+  
   if (activePoint === null) return;
   e.preventDefault();
 
