@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.11b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.12b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -5108,37 +5108,44 @@ function checkForbiddenPath(pos) {
 
 // Начало рисования для "Запретного цвета"
 function startDrawingForbiddenColor(e) {
-  e.preventDefault();
-  if (exerciseCompleted) return;
+    e.preventDefault();
+    if (exerciseCompleted) return;
 
-  const pos = getPosition(e);
+    const pos = getPosition(e);
+    let nearBlueIsland = false;
 
-  // Проверяем, что начало рисования рядом с синим островком
-  let nearBlueIsland = false;
-  for (const island of currentExercise.blueIslands) {
-    const x = island.x * canvas.width;
-    const y = island.y * canvas.height;
-    const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
-    if (dist <= island.r + 20) {
-      nearBlueIsland = true;
-      break;
+    // Проверяем, находится ли точка касания рядом с любым синим островком
+    for (const island of currentExercise.blueIslands) {
+        // Переводим координаты островка в пиксели
+        const islandCenterX = island.x * canvas.width;
+        const islandCenterY = island.y * canvas.height;
+        
+        // Считаем расстояние от пальца до центра островка
+        const dist = Math.sqrt(
+            Math.pow(pos.x - islandCenterX, 2) + 
+            Math.pow(pos.y - islandCenterY, 2)
+        );
+
+        // Если попали в радиус островка (плюс небольшой допуск 20px для пальца)
+        if (dist <= island.r + 20) {
+            nearBlueIsland = true;
+            break;
+        }
     }
-  }
 
-  if (!nearBlueIsland) {
-    showForbiddenColorError("Начни от синего островка!");
-    return;
-  }
+    if (!nearBlueIsland) {
+        showForbiddenColorError('Начни от синего островка!');
+        return;
+    }
 
-  isDrawing = true;
-  userPath = [pos];
-
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
-  ctx.strokeStyle = "#4caf50"; // Зелёный для правильного пути
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+    isDrawing = true;
+    userPath = [pos];
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = "#4caf50"; // Зелёный для правильного пути
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 }
 
 // Рисование с проверкой на запретный цвет
