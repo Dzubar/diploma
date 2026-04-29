@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.8b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.9b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -258,7 +258,16 @@ function loadModule(moduleNum) {
     }
 
     currentExercise = moduleExercises[currentExerciseIndex];
+    // === Блок генерации для Модуль 7
+    if (currentExercise.type === "forbidden-color") {
+      const islands = generateForbiddenColorIslands(); // Генерируем случайные
+      currentExercise.blueIslands = islands.blueIslands;
+      currentExercise.yellowIslands = islands.yellowIslands;
+      currentExercise.forbiddenColor = { r: 255, g: 235, b: 59 };
+    }
+    // ===========================
     displayExercise(currentExercise);
+
     startTime = Date.now();
   }, 100); // Увеличена задержка до 100ms для надежности
 }
@@ -731,16 +740,8 @@ function getModuleExercises(moduleNum) {
         type: "forbidden-color",
         instruction: "Соедини все синие островки, но НЕ касайся жёлтых!",
         // Синие островки (цель — соединить)
-        blueIslands: [
-          { x: 0.2, y: 0.3, r: 25 },
-          { x: 0.5, y: 0.5, r: 25 },
-          { x: 0.8, y: 0.7, r: 25 }
-        ],
-        // Жёлтые островки (запретные)
-        yellowIslands: [
-          { x: 0.4, y: 0.2, r: 30 },
-          { x: 0.6, y: 0.8, r: 28 }
-        ],
+        // Массивы blueIslands и yellowIslands УДАЛИТЬ отсюда
+        // Они будут создаваться автоматически функцией generateForbiddenColorIslands()
         // RGB жёлтого цвета для проверки (цвет #FFEB3B)
         forbiddenColor: { r: 255, g: 235, b: 59 }
       },
@@ -5175,33 +5176,25 @@ function drawForbiddenColorWithCheck(pos) {
 
 // Проверка завершения: все ли синие островки посещены
 function checkForbiddenColorCompletion() {
-  // Используем Set для хранения индексов посещённых островков
-  let visitedIslands = new Set();
+  let visitedCount = 0;
 
-  // Проходим по ВЕСЬМУ пути, который нарисовал пользователь
-  for (let i = 0; i < userPath.length; i++) {
-    const pos = userPath[i];
+  for (let island of currentExercise.blueIslands) {
+    const x = island.x * canvas.width;
+    const y = island.y * canvas.height;
 
-    for (let j = 0; j < currentExercise.blueIslands.length; j++) {
-      const island = currentExercise.blueIslands[j];
-      const x = island.x * canvas.width;
-      const y = island.y * canvas.height;
-
-      // Проверяем расстояние от точки пути до центра островка
-      const dist = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
-
-      // Если попали в зону островка (радиус + 15px допуск для пальца)
-      if (dist <= island.r + 15) {
-        visitedIslands.add(j);
+    // Проверяем, касался ли пользователь этого островка
+    for (let pos of userPath) {
+      if (Math.hypot(pos.x - x, pos.y - y) <= island.r + 12) {
+        visitedCount++;
+        break; // Переходим к следующему островку
       }
     }
   }
 
-  // Если количество уникальных посещённых островков равно общему количеству
-  // И линия достаточно длинная (защита от случайных касаний)
+  // Если посещены ВСЕ синие островки и линия достаточно длинная
   if (
-    visitedIslands.size === currentExercise.blueIslands.length &&
-    userPath.length > 20
+    visitedCount === currentExercise.blueIslands.length &&
+    userPath.length > 15
   ) {
     completeForbiddenColor();
   }
@@ -5235,6 +5228,78 @@ function showForbiddenColorError(message) {
   setTimeout(() => {
     feedback.classList.add("hidden");
   }, 2000);
+}
+
+// Генерация случайных островков для "Запретного цвета"
+function generateForbiddenColorIslands() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const padding = 60;
+  const minGap = 75; // Минимальное расстояние между центрами
+
+  let blueIslands = [];
+  let yellowIslands = [];
+
+  // Случайное количество: синие 3-4, желтые 2-3
+  const numBlue = 3 + Math.floor(Math.random() * 2);
+  const numYellow = 2 + Math.floor(Math.random() * 2);
+
+  // Проверка пересечений
+  const isOverlapping = (x, y, r, list) => {
+    for (let item of list) {
+      if (Math.hypot(x - item.x, y - item.y) < r + item.r + minGap) return true;
+    }
+    return false;
+  };
+
+  // 1. Размещаем синие островки с уклоном слева-направо
+  for (let i = 0; i < numBlue; i++) {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 300) {
+      const r = 20 + Math.random() * 15;
+
+      // bias: первый слева, последний справа, средние разбросаны
+      let xMin = padding;
+      let xMax = w - padding;
+      if (i === 0) xMax = w * 0.35;
+      if (i === numBlue - 1) xMin = w * 0.65;
+
+      const x = xMin + Math.random() * (xMax - xMin);
+      const y = padding + r + Math.random() * (h - 2 * padding - 2 * r);
+
+      if (
+        !isOverlapping(x, y, r, blueIslands) &&
+        !isOverlapping(x, y, r, yellowIslands)
+      ) {
+        blueIslands.push({ x: x / w, y: y / h, r }); // Сохраняем относительные координаты
+        placed = true;
+      }
+      attempts++;
+    }
+  }
+
+  // 2. Размещаем желтые островки-препятствия
+  for (let i = 0; i < numYellow; i++) {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 300) {
+      const r = 25 + Math.random() * 15;
+      const x = padding + r + Math.random() * (w - 2 * padding - 2 * r);
+      const y = padding + r + Math.random() * (h - 2 * padding - 2 * r);
+
+      if (
+        !isOverlapping(x, y, r, blueIslands) &&
+        !isOverlapping(x, y, r, yellowIslands)
+      ) {
+        yellowIslands.push({ x: x / w, y: y / h, r });
+        placed = true;
+      }
+      attempts++;
+    }
+  }
+
+  return { blueIslands, yellowIslands };
 }
 
 // ============================================ КОНЕЦ МОДУЛЬ 7 ============================================ //
