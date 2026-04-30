@@ -55,6 +55,18 @@ let userDrawnPoints = []; // Точки, нарисованные пользов
 let segmentStartPoints = []; // Отслеживание прохождения через начальную точку каждого сегмента
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 25; // Допуск для попадания в контрольную точку (пиксели)
+// Переменные для "Найди и повтори"
+let filterShapes = []; // Массив фигур на левом поле
+let targetShape = null; // Целевая фигура для повторения
+let userFilterPath = []; // Путь пользователя
+let isDrawingFilter = false; // Флаг рисования
+const SHAPE_TYPES = ["line", "square", "circle", "triangle"];
+const COLORS = [
+  { name: "красный", hex: "#ff5252" },
+  { name: "жёлтый", hex: "#FFEB3B" },
+  { name: "зелёный", hex: "#4caf50" },
+  { name: "синий", hex: "#2196f3" }
+];
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -68,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.0"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.1b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -392,6 +404,12 @@ function getModuleExercises(moduleNum) {
     ],
     5: [
       {
+        title: "Найди и повтори",
+        type: "visual-filter",
+        instruction:
+          "Найди на левом поле и нарисуй в правильном месте на правом поле [ЦВЕТ] [ФИГУРА]"
+      },
+      {
         title: "Рисуем Ромб",
         type: "pattern-dots",
         instruction: "Соедини точки, чтобы получился ромб",
@@ -517,12 +535,12 @@ function getModuleExercises(moduleNum) {
           { x: 0.9, y: 0.9 }
         ],
         pattern: [
-          [20,10],
-					[10,14],
-					[14,24],
-					[24,20],
-					[10,2],
-					[2,14]
+          [20, 10],
+          [10, 14],
+          [14, 24],
+          [24, 20],
+          [10, 2],
+          [2, 14]
         ]
       }
     ],
@@ -641,49 +659,57 @@ function getModuleExercises(moduleNum) {
         ]
       }
     ],
-   7: [{
-        title: 'Найди ошибку',
-        type: 'find-error',
-        instruction: 'Найди неправильный элемент'
-    }, {
-        title: 'Сравни узоры',
-        type: 'compare',
-        instruction: 'Выбери правильный узор'
-    }, {
-        title: 'Запретный цвет',
-        type: 'forbidden-color',
-        instruction: 'Соедини все синие островки, но НЕ касайся жёлтых!',
-        blueIslands: [{
-                x: 100,
-                y: 150,
-                r: 25
-            }, {
-                x: 300,
-                y: 250,
-                r: 25
-            }, {
-                x: 200,
-                y: 400,
-                r: 25
-            }
+    7: [
+      {
+        title: "Найди ошибку",
+        type: "find-error",
+        instruction: "Найди неправильный элемент"
+      },
+      {
+        title: "Сравни узоры",
+        type: "compare",
+        instruction: "Выбери правильный узор"
+      },
+      {
+        title: "Запретный цвет",
+        type: "forbidden-color",
+        instruction: "Соедини все синие островки, но НЕ касайся жёлтых!",
+        blueIslands: [
+          {
+            x: 100,
+            y: 150,
+            r: 25
+          },
+          {
+            x: 300,
+            y: 250,
+            r: 25
+          },
+          {
+            x: 200,
+            y: 400,
+            r: 25
+          }
         ],
-        yellowIslands: [{
-                x: 150,
-                y: 200,
-                r: 30
-            }, {
-                x: 250,
-                y: 350,
-                r: 30
-            }
+        yellowIslands: [
+          {
+            x: 150,
+            y: 200,
+            r: 30
+          },
+          {
+            x: 250,
+            y: 350,
+            r: 30
+          }
         ],
         forbiddenColor: {
-            r: 255,
-            g: 235,
-            b: 59
+          r: 255,
+          g: 235,
+          b: 59
         }
-    }
-],
+      }
+    ]
   };
 
   return modules[moduleNum] || modules[1];
@@ -848,6 +874,15 @@ function displayExercise(exercise) {
     patternStartPoint = exercise.startPoint || null;
   }
 
+	// Упражнение "Найди и повтори"
+	if (exercise.type === 'visual-filter') {
+    generateFilterShapes();
+    drawFilterShapes();
+    // Очистка правого поля
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(canvas.width/2, 0, canvas.width/2, canvas.height);
+}
+	
   // Показываем/скрываем соответствующие элементы управления
   const regularControls = document.querySelector(".controls");
   const gridControls = document.getElementById("grid-controls");
@@ -1026,6 +1061,10 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
+		// Модуль 5: Найди и повтори
+else if (currentExercise && currentExercise.type === "visual-filter") {
+    startDrawingVisualFilter(e);
+}
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1064,6 +1103,10 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
+		// Модуль 5: Найди и повтори
+else if (currentExercise && currentExercise.type === "visual-filter") {
+    startDrawingVisualFilter(e);
+}
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1224,6 +1267,11 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
+	// Модуль 5: Найди и повтори
+if (currentExercise && currentExercise.type === "visual-filter") {
+    drawVisualFilterWithCheck(pos);
+    return;
+}
 
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1265,6 +1313,13 @@ function stopDrawing(e) {
     stopDrawingPatternDots(e);
     return;
   }
+
+	// Модуль 5: Найди и повтори
+if (currentExercise && currentExercise.type === "visual-filter") {
+    isDrawingFilter = false;
+    ctx.closePath();
+    return;
+}
 
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1319,6 +1374,134 @@ function getPosition(e) {
 // ============================================
 // МОДУЛЬ 5: ЗРИТЕЛЬНО-МОТОРНОЕ СООТНЕСЕНИЕ
 // ============================================
+
+// === УПРАЖНЕНИЕ "Найди и повтори" ===
+function generateFilterShapes() {
+  filterShapes = [];
+  const leftWidth = canvas.width / 2;
+  const leftHeight = canvas.height;
+
+  // Выбираем 3 уникальные фигуры и 3 уникальных цвета
+  const selectedShapes = shuffleArray(SHAPE_TYPES).slice(0, 3);
+  const selectedColors = shuffleArray(COLORS).slice(0, 3);
+
+  // Сопоставляем фигуры и цвета
+  selectedShapes.forEach((shape, i) => {
+    filterShapes.push({
+      type: shape,
+      color: selectedColors[i].hex,
+      colorName: selectedColors[i].name,
+      x: Math.random() * (leftWidth - 100) + 50,
+      y: Math.random() * (leftHeight - 100) + 50,
+      size: 60 + Math.random() * 40
+    });
+  });
+
+  // Выбираем случайную целевую фигуру
+  targetShape = filterShapes[Math.floor(Math.random() * filterShapes.length)];
+
+  // Обновляем инструкцию
+  document.getElementById("instruction").textContent =
+    `Найди на левом поле и нарисуй в правильном месте на правом поле ${targetShape.colorName} ${getShapeName(targetShape.type)}`;
+}
+
+function getShapeName(type) {
+  const names = {
+    line: "линию",
+    square: "квадрат",
+    circle: "круг",
+    triangle: "треугольник"
+  };
+  return names[type] || type;
+}
+
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+// Отрисовка левого поля
+function drawFilterShapes() {
+  const leftWidth = canvas.width / 2;
+  ctx.clearRect(0, 0, leftWidth, canvas.height);
+  ctx.fillStyle = "#f5f5f5";
+  ctx.fillRect(0, 0, leftWidth, canvas.height);
+
+  // Рисуем все фигуры
+  filterShapes.forEach((shape) => {
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+
+    switch (shape.type) {
+      case "line":
+        ctx.moveTo(shape.x - shape.size / 2, shape.y);
+        ctx.lineTo(shape.x + shape.size / 2, shape.y);
+        break;
+      case "square":
+        ctx.rect(
+          shape.x - shape.size / 2,
+          shape.y - shape.size / 2,
+          shape.size,
+          shape.size
+        );
+        break;
+      case "circle":
+        ctx.arc(shape.x, shape.y, shape.size / 2, 0, Math.PI * 2);
+        break;
+      case "triangle":
+        const r = shape.size / 2;
+        ctx.moveTo(shape.x, shape.y - r);
+        ctx.lineTo(shape.x - r, shape.y + r);
+        ctx.lineTo(shape.x + r, shape.y + r);
+        ctx.closePath();
+        break;
+    }
+    ctx.stroke();
+  });
+}
+//  Правое поле и проверка
+function startDrawingFilter(e) {
+  e.preventDefault();
+  const pos = getPosition(e);
+  if (pos.x < canvas.width / 2) return; // Только правое поле
+
+  isDrawingFilter = true;
+  userFilterPath = [pos];
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  ctx.strokeStyle = targetShape.color;
+  ctx.lineWidth = 4;
+}
+
+function drawFilterWithCheck(pos) {
+  if (!isDrawingFilter) return;
+  userFilterPath.push(pos);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+
+  // Простая проверка завершения (по длине пути)
+  if (userFilterPath.length > 50) {
+    checkFilterCompletion();
+  }
+}
+
+function checkFilterCompletion() {
+  // Упрощённая проверка: достаточно длинный путь = успех
+  if (userFilterPath.length > 100) {
+    exerciseCompleted = true;
+    isDrawingFilter = false;
+    showFeedback("✓ Отлично! Фигура повторена!", "success");
+    setTimeout(nextExercise, 1500);
+  }
+}
+
+// === КОНЕЦ УПРАЖНЕНИЯ "Найди и повтори" === //
+
+// ===========================================УБРАТЬ?====================== //
 
 // Начало рисования зеркальной елочки
 function startDrawingMirrorTree(e) {
@@ -2447,6 +2630,10 @@ function drawExerciseTemplate(exercise) {
     case "pattern-dots":
       drawPatternDots();
       break;
+			// Модуль 5: Найди и повтори
+case "visual-filter":
+    drawVisualFilterTemplate();
+    break;
 
     // Модуль 6: Графические диктанты
     case "grid-square":
@@ -2457,10 +2644,10 @@ function drawExerciseTemplate(exercise) {
       drawGridTemplate();
       break;
 
-// Модуль 7: Запретный цвет
-case 'forbidden-color':
-    drawForbiddenColorTemplate();
-    break;
+    // Модуль 7: Запретный цвет
+    case "forbidden-color":
+      drawForbiddenColorTemplate();
+      break;
 
     // Другие модули
     case "line":
@@ -4628,7 +4815,6 @@ function drawPatternDotsWithCheck(pos) {
   drawPatternDots();
 }
 
-
 function stopDrawingPatternDots(e) {
   if (activePoint === null) return;
   e.preventDefault();
@@ -4966,40 +5152,39 @@ function checkForbiddenPath(pos) {
 // Начало рисования для "Запретного цвета"
 // Начало рисования для "Запретного цвета"
 function startDrawingForbiddenColor(e) {
-    e.preventDefault();
-    if (exerciseCompleted) return;
-    const pos = getPosition(e);
-    let nearBlueIsland = false;
-    
-    for (const island of currentExercise.blueIslands) {
-        // ИСПРАВЛЕНИЕ: не умножаем на canvas.width, так как x уже в пикселях
-        const islandCenterX = island.x;
-        const islandCenterY = island.y;
-        
-        const dist = Math.sqrt(
-            Math.pow(pos.x - islandCenterX, 2) +
-            Math.pow(pos.y - islandCenterY, 2)
-        );
-        
-        if (dist <= island.r + 20) {
-            nearBlueIsland = true;
-            break;
-        }
+  e.preventDefault();
+  if (exerciseCompleted) return;
+  const pos = getPosition(e);
+  let nearBlueIsland = false;
+
+  for (const island of currentExercise.blueIslands) {
+    // ИСПРАВЛЕНИЕ: не умножаем на canvas.width, так как x уже в пикселях
+    const islandCenterX = island.x;
+    const islandCenterY = island.y;
+
+    const dist = Math.sqrt(
+      Math.pow(pos.x - islandCenterX, 2) + Math.pow(pos.y - islandCenterY, 2)
+    );
+
+    if (dist <= island.r + 20) {
+      nearBlueIsland = true;
+      break;
     }
-    
-    if (!nearBlueIsland) {
-        showForbiddenColorError('Начни от синего островка!');
-        return;
-    }
-    
-    isDrawing = true;
-    userPath = [pos];
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = "#4caf50";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+  }
+
+  if (!nearBlueIsland) {
+    showForbiddenColorError("Начни от синего островка!");
+    return;
+  }
+
+  isDrawing = true;
+  userPath = [pos];
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 }
 
 // Рисование с проверкой на запретный цвет
@@ -5041,26 +5226,29 @@ function drawForbiddenColorWithCheck(pos) {
 
 // Проверка завершения: все ли синие островки посещены
 function checkForbiddenColorCompletion() {
-    let visitedCount = 0;
-    
-    for (let island of currentExercise.blueIslands) {
-        // ОСТАНОВИТЕСЬ: island.x уже в пикселях, не умножаем на canvas.width!
-        const x = island.x; 
-        const y = island.y;
-        
-        // Проверяем, касался ли пользователь этого островка
-        for (let pos of userPath) {
-            if (Math.hypot(pos.x - x, pos.y - y) <= island.r + 12) {
-                visitedCount++;
-                break; // Переходим к следующему островку
-            }
-        }
+  let visitedCount = 0;
+
+  for (let island of currentExercise.blueIslands) {
+    // ОСТАНОВИТЕСЬ: island.x уже в пикселях, не умножаем на canvas.width!
+    const x = island.x;
+    const y = island.y;
+
+    // Проверяем, касался ли пользователь этого островка
+    for (let pos of userPath) {
+      if (Math.hypot(pos.x - x, pos.y - y) <= island.r + 12) {
+        visitedCount++;
+        break; // Переходим к следующему островку
+      }
     }
-    
-    // Если посещены ВСЕ синие островки и линия достаточно длинная
-    if (visitedCount === currentExercise.blueIslands.length && userPath.length > 15) {
-        completeForbiddenColor();
-    }
+  }
+
+  // Если посещены ВСЕ синие островки и линия достаточно длинная
+  if (
+    visitedCount === currentExercise.blueIslands.length &&
+    userPath.length > 15
+  ) {
+    completeForbiddenColor();
+  }
 }
 
 // Завершение упражнения
