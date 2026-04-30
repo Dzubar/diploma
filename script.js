@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.7b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.8b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1501,7 +1501,6 @@ function checkFilterCompletion() {
     console.log('  - Bounding box:', analysis.bbox);
     console.log('  - Соотношение сторон:', analysis.aspectRatio.toFixed(2));
     console.log('  - Определённый тип:', analysis.detectedType);
-    console.log('  - Попадание в цвет:', analysis.colorMatch);
     
     // Проверяем, что рисовали на правом поле
     let rightSidePoints = 0;
@@ -1518,12 +1517,11 @@ function checkFilterCompletion() {
             clearCanvas();
             drawExerciseTemplate(currentExercise);
             userFilterPath = [];
-        }, 1000);
+        }, 1500);
         return;
     }
     
     // === ПРОВЕРКА СООТВЕТСТВИЯ ФИГУРЫ ===
-    // Сравниваем тип фигуры (без учёта цвета!)
     if (analysis.detectedType === targetShape.type) {
         console.log('✅ Фигура совпадает!');
         exerciseCompleted = true;
@@ -1539,6 +1537,48 @@ function checkFilterCompletion() {
             userFilterPath = [];
         }, 1500);
     }
+}
+
+// Анализ нарисованной фигуры
+function analyzeDrawnShape(path) {
+    if (path.length < 10) return { detectedType: 'unknown', aspectRatio: 0, bbox: {} };
+    
+    // Находим bounding box
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let pos of path) {
+        minX = Math.min(minX, pos.x);
+        maxX = Math.max(maxX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxY = Math.max(maxY, pos.y);
+    }
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const aspectRatio = width / height;
+    
+    const bbox = { minX, maxX, minY, maxY, width, height };
+    
+    // Определяем тип фигуры по соотношению сторон
+    let detectedType = 'unknown';
+    
+    if (width < 30 || height < 30) {
+        detectedType = 'too_small'; // Слишком мелко
+    } else if (aspectRatio > 3 || aspectRatio < 0.33) {
+        detectedType = 'line'; // Линия (очень узкая и длинная)
+    } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
+        // Квадрат или круг (соотношение близко к 1)
+        // Для простоты считаем квадратом
+        detectedType = 'square';
+    } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
+        // Треугольник или прямоугольник
+        detectedType = 'triangle';
+    }
+    
+    return {
+        detectedType,
+        aspectRatio,
+        bbox
+    };
 }
 
 // Анализ нарисованной фигуры
