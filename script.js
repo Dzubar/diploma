@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.2b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.3b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1309,12 +1309,13 @@ function stopDrawing(e) {
     return;
   }
 
-  // Модуль 5: Найди и повтори
-  if (currentExercise && currentExercise.type === "visual-filter") {
+// Модуль 5: Найди и повтори
+if (currentExercise && currentExercise.type === "visual-filter") {
     isDrawingFilter = false;
+    isDrawing = false; // <-- СБРОС ОБЩЕГО ФЛАГА
     ctx.closePath();
     return;
-  }
+}
 
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1485,27 +1486,39 @@ function drawFilterWithCheck(pos) {
 }
 
 function checkFilterCompletion() {
-  // Упрощённая проверка: достаточно длинный путь = успех
-  if (userFilterPath.length > 100) {
-    exerciseCompleted = true;
-    isDrawingFilter = false;
-    showFeedback("✓ Отлично! Фигура повторена!", "success");
-    setTimeout(nextExercise, 1500);
-  }
+    // Успех, если линия достаточно длинная
+    if (userFilterPath.length > 100) {
+        exerciseCompleted = true;
+        isDrawingFilter = false;
+        isDrawing = false;
+
+        const feedback = document.getElementById('feedback');
+        feedback.textContent = '✓ Отлично! Фигура повторена!';
+        feedback.className = 'feedback success';
+        feedback.classList.remove('hidden');
+
+        setTimeout(() => {
+            nextExercise();
+        }, 1500);
+    }
 }
 
 function startDrawingVisualFilter(e) {
-  e.preventDefault();
-  if (exerciseCompleted) return; // ← ДОБАВЛЕНО
-  const pos = getPosition(e);
-  if (pos.x < canvas.width / 2) {
-    showFeedback("Рисуй только на правом поле!", "error");
-    return;
-  }
-  isDrawingFilter = true;
-  userFilterPath = [pos];
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
+    e.preventDefault();
+    if (exerciseCompleted) return;
+    const pos = getPosition(e);
+
+    // Разрешаем рисовать только справа
+    if (pos.x < canvas.width / 2) {
+        return; 
+    }
+
+    isDrawingFilter = true;
+    isDrawing = true; // <-- ЭТА СТРОКА ЗАПУСКАЕТ ПРОЦЕСС РИСОВАНИЯ
+    
+    userFilterPath = [pos];
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
 }
 
 // === КОНЕЦ УПРАЖНЕНИЯ "Найди и повтори" === //
