@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.0b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.0blog"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1456,8 +1456,16 @@ function drawFilterShapes() {
 }
 
 function drawFilterWithCheck(pos) {
-  if (!isDrawingFilter) return;
-  userFilterPath.push(pos);
+  console.log("✏️ drawFilterWithCheck:", {
+    isDrawingFilter,
+    x: pos.x,
+    y: pos.y
+  }); // ← ОТЛАДКА
+
+  if (!isDrawingFilter) {
+    console.log("⚠️ isDrawingFilter = false, выход");
+    return;
+  }
 
   // Проверяем, рисуем ли мы на правом поле
   if (pos.x < canvas.width / 2) {
@@ -1470,13 +1478,17 @@ function drawFilterWithCheck(pos) {
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
 
-  // Проверяем завершение
-  if (userFilterPath.length > 50) {
+  // ПРОВЕРКА: вызываем checkFilterCompletion при достаточной длине
+  if (userFilterPath.length >= 50) {
+    console.log(
+      "✅ Вызываем checkFilterCompletion (length=" + userFilterPath.length + ")"
+    );
     checkFilterCompletion();
   }
 }
 
 function checkFilterCompletion() {
+  console.log("🚨 checkFilterCompletion ВЫЗВАНА!"); // ← ПРОВЕРКА ВЫЗОВА
   if (userFilterPath.length < 50) return;
 
   // === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
