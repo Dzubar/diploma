@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.0blog"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.3b отладка"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1488,10 +1488,16 @@ function drawFilterWithCheck(pos) {
 }
 
 function checkFilterCompletion() {
-  console.log("🚨 checkFilterCompletion ВЫЗВАНА!"); // ← ПРОВЕРКА ВЫЗОВА
-  if (userFilterPath.length < 50) return;
 
-  // === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
+	    // === БАЗОВАЯ ОТЛАДКА ===
+    console.group('🔍 checkFilterCompletion');
+    console.log('  isDrawingFilter:', isDrawingFilter);
+    console.log('  userFilterPath.length:', userFilterPath?.length ?? 'undefined');
+    console.log('  targetShape:', targetShape);
+    console.log('  canvas.width:', canvas?.width ?? 'undefined');
+    console.groupEnd();
+	
+	// === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
   const analysis = analyzeDrawnShape(userFilterPath);
 
   console.log("🏁 Проверка завершения упражнения");
@@ -1615,23 +1621,28 @@ function showFeedback(message, type) {
 }
 
 function startDrawingVisualFilter(e) {
-  e.preventDefault();
-  if (exerciseCompleted || !targetShape) return; // Добавлена проверка
-
-  const pos = getPosition(e);
-
-  // Разрешаем рисовать только справа
-  if (pos.x < canvas.width / 2) {
-    return;
-  }
-
-  isDrawingFilter = true;
-  isDrawing = true;
-  userFilterPath = [pos];
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
-  ctx.strokeStyle = targetShape.color; // Цвет целевой фигуры
-  ctx.lineWidth = 4;
+    e.preventDefault();
+    console.log('🖐️ startDrawingVisualFilter вызвана'); // ← ОТЛАДКА
+    
+    if (exerciseCompleted || !targetShape) return;
+    
+    const pos = getPosition(e);
+    console.log('   Позиция:', pos, 'canvas.width/2:', canvas.width/2);
+    
+    if (pos.x < canvas.width / 2) {
+        console.log('⚠️ Касание слева, выход');
+        return;
+    }
+    
+    isDrawingFilter = true;
+    isDrawing = true;
+    console.log('✅ Флаги установлены: isDrawingFilter=', isDrawingFilter, 'isDrawing=', isDrawing);
+    
+    userFilterPath = [pos];
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = targetShape.color;
+    ctx.lineWidth = 4;
 }
 
 // === КОНЕЦ УПРАЖНЕНИЯ "Найди и повтори" === //
