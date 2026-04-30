@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.6b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.7b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1490,10 +1490,20 @@ function drawFilterWithCheck(pos) {
 }
 
 function checkFilterCompletion() {
-    // Проверяем, что нарисовано достаточно точек
     if (userFilterPath.length < 50) return;
     
-    // 1. Проверяем, что рисовали на правом поле
+    // === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
+    const analysis = analyzeDrawnShape(userFilterPath);
+    
+    console.log('🎨 Анализ фигуры:');
+    console.log('  - Целевая фигура:', targetShape.type, targetShape.colorName);
+    console.log('  - Нарисовано точек:', userFilterPath.length);
+    console.log('  - Bounding box:', analysis.bbox);
+    console.log('  - Соотношение сторон:', analysis.aspectRatio.toFixed(2));
+    console.log('  - Определённый тип:', analysis.detectedType);
+    console.log('  - Попадание в цвет:', analysis.colorMatch);
+    
+    // Проверяем, что рисовали на правом поле
     let rightSidePoints = 0;
     for (let pos of userFilterPath) {
         if (pos.x > canvas.width / 2) {
@@ -1502,7 +1512,7 @@ function checkFilterCompletion() {
     }
     
     if (rightSidePoints < userFilterPath.length * 0.7) {
-        // 70% точек должны быть справа
+        console.log('❌ Ошибка: мало точек на правом поле');
         showFeedback("⚠️ Рисуй на правом поле!", "error");
         setTimeout(() => {
             clearCanvas();
@@ -1512,9 +1522,32 @@ function checkFilterCompletion() {
         return;
     }
     
-    // 2. Проверяем форму (упрощенно - по bounding box)
+    // === ПРОВЕРКА СООТВЕТСТВИЯ ФИГУРЫ ===
+    // Сравниваем тип фигуры (без учёта цвета!)
+    if (analysis.detectedType === targetShape.type) {
+        console.log('✅ Фигура совпадает!');
+        exerciseCompleted = true;
+        isDrawingFilter = false;
+        showFeedback("✓ Отлично! Фигура повторена!", "success");
+        setTimeout(nextExercise, 1500);
+    } else {
+        console.log(`❌ Фигура не совпадает: ожидалось ${targetShape.type}, определено ${analysis.detectedType}`);
+        showFeedback(`⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`, "error");
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1500);
+    }
+}
+
+// Анализ нарисованной фигуры
+function analyzeDrawnShape(path) {
+    if (path.length < 10) return { detectedType: 'unknown', aspectRatio: 0, bbox: {}, colorMatch: false };
+    
+    // Находим bounding box
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let pos of userFilterPath) {
+    for (let pos of path) {
         minX = Math.min(minX, pos.x);
         maxX = Math.max(maxX, pos.x);
         minY = Math.min(minY, pos.y);
@@ -1525,48 +1558,31 @@ function checkFilterCompletion() {
     const height = maxY - minY;
     const aspectRatio = width / height;
     
-    let shapeMatches = false;
-    switch (targetShape.type) {
-        case "line":
-            shapeMatches = aspectRatio > 3 || aspectRatio < 0.33;
-            break;
-        case "square":
-            shapeMatches = aspectRatio > 0.7 && aspectRatio < 1.3;
-            break;
-        case "circle":
-            shapeMatches = aspectRatio > 0.7 && aspectRatio < 1.3;
-            break;
-        case "triangle":
-            shapeMatches = aspectRatio > 0.5 && aspectRatio < 1.5;
-            break;
+    const bbox = { minX, maxX, minY, maxY, width, height };
+    
+    // Определяем тип фигуры по соотношению сторон и другим признакам
+    let detectedType = 'unknown';
+    
+    if (width < 30 || height < 30) {
+        detectedType = 'too_small'; // Слишком мелко
+    } else if (aspectRatio > 3 || aspectRatio < 0.33) {
+        detectedType = 'line'; // Линия (очень узкая и длинная)
+    } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
+        // Квадрат или круг (соотношение близко к 1)
+        // Для простоты считаем квадратом (круг сложнее определить без анализа кривизны)
+        detectedType = 'square';
+    } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
+        // Треугольник или прямоугольник
+        // Для простоты считаем треугольником
+        detectedType = 'triangle';
     }
     
-    if (!shapeMatches) {
-        showFeedback("⚠️ Не похоже на " + getShapeName(targetShape.type) + "!", "error");
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
-        return;
-    }
-    
-    // 3. Проверяем размер (не слишком маленький)
-    if (Math.max(width, height) < 40) {
-        showFeedback("⚠️ Слишком мелко! Рисуй крупнее", "error");
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
-        return;
-    }
-    
-    // ✅ ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ
-    exerciseCompleted = true;
-    isDrawingFilter = false;
-    showFeedback("✓ Отлично! Фигура повторена!", "success");
-    setTimeout(nextExercise, 1500);
+    return {
+        detectedType,
+        aspectRatio,
+        bbox,
+        colorMatch: true // Цвет не проверяем, так как рисуем цветом targetShape
+    };
 }
 
 function showFeedback(message, type) {
