@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.0.12b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.0.7b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -391,92 +391,6 @@ function getModuleExercises(moduleNum) {
       }
     ],
     5: [
-      /*{
-        title: "Зеркальная елочка",
-        type: "mirror-tree",
-        instruction: "Повтори елочку справа, глядя на образец слева",
-        subTasks: 3,
-        segments: [
-          // ВЕРХНИЙ ТРЕУГОЛЬНИК (subTaskIndex: 0)
-          {
-            x1: 0,
-            y1: 1,
-            x2: -2,
-            y2: 3,
-            isCompleted: false,
-            subTaskIndex: 0
-          }, // левая сторона верхнего треугольника
-          {
-            x1: 0,
-            y1: 1,
-            x2: 2,
-            y2: 3,
-            isCompleted: false,
-            subTaskIndex: 0
-          }, // правая сторона верхнего треугольника
-          {
-            x1: -2,
-            y1: 3,
-            x2: 2,
-            y2: 3,
-            isCompleted: false,
-            subTaskIndex: 0
-          }, // основание верхнего треугольника
-
-          // НИЖНИЙ ТРЕУГОЛЬНИК (subTaskIndex: 1)
-          {
-            x1: 0,
-            y1: 3,
-            x2: -3,
-            y2: 6,
-            isCompleted: false,
-            subTaskIndex: 1
-          }, // левая сторона нижнего треугольника
-          {
-            x1: 0,
-            y1: 3,
-            x2: 3,
-            y2: 6,
-            isCompleted: false,
-            subTaskIndex: 1
-          }, // правая сторона нижнего треугольника
-          {
-            x1: -3,
-            y1: 6,
-            x2: 3,
-            y2: 6,
-            isCompleted: false,
-            subTaskIndex: 1
-          }, // основание нижнего треугольника
-
-          // СТВОЛ (subTaskIndex: 2)
-          {
-            x1: -1,
-            y1: 6,
-            x2: -1,
-            y2: 8,
-            isCompleted: false,
-            subTaskIndex: 2
-          }, // левая сторона ствола
-          {
-            x1: 1,
-            y1: 6,
-            x2: 1,
-            y2: 8,
-            isCompleted: false,
-            subTaskIndex: 2
-          }, // правая сторона ствола
-          {
-            x1: -1,
-            y1: 8,
-            x2: 1,
-            y2: 8,
-            isCompleted: false,
-            subTaskIndex: 2
-          } // основание ствола
-        ]
-      },*/
-
       {
         title: "Рисуем Ромб",
         type: "pattern-dots",
@@ -603,14 +517,12 @@ function getModuleExercises(moduleNum) {
           { x: 0.9, y: 0.9 }
         ],
         pattern: [
-          // Стены домика (квадрат)
-          [20, 24], // низ: лево → право
-          [24, 14], // право: низ → верх
-          [14, 10], // верх: право → лево
-          [10, 20], // лево: верх → низ (замкнули квадрат)
-          // Крыша (треугольник)
-          [10, 7], // левый скат: угол → вершина
-          [7, 14] // правый скат: вершина → угол
+          [20,10],
+					[10,14],
+					[14,24],
+					[24,20],
+					[10,2],
+					[2,14]
         ]
       }
     ],
@@ -4716,61 +4628,6 @@ function drawPatternDotsWithCheck(pos) {
   drawPatternDots();
 }
 
-/*
-function stopDrawingPatternDots(e) {
-  if (activePoint === null) return;
-
-  e.preventDefault();
-
-  const pos = getPosition(e);
-  const endPointIdx = getPointAtPosition(pos.x, pos.y);
-
-  // Линия фиксируется только если палец находится рядом с точкой
-  if (endPointIdx !== null && endPointIdx !== activePoint) {
-    // Проверяем, валидно ли это соединение
-    if (isValidConnection(activePoint, endPointIdx)) {
-      // Проверяем, не добавлено ли уже это соединение
-      let alreadyExists = false;
-      for (let i = 0; i < userConnections.length; i++) {
-        const [a, b] = userConnections[i];
-        if (
-          (a === activePoint && b === endPointIdx) ||
-          (a === endPointIdx && b === activePoint)
-        ) {
-          alreadyExists = true;
-          break;
-        }
-      }
-
-      if (!alreadyExists) {
-        // Добавляем соединение
-        userConnections.push([activePoint, endPointIdx]);
-
-        // Проверяем, завершен ли узор (все 8 сегментов)
-        if (checkPatternCompletion()) {
-          completePatternDotsExercise();
-        } else {
-          // Показываем успех для этого соединения
-          showPatternFeedback("✓ Правильно!");
-        }
-      } else {
-        showPatternFeedback("⚠️ Уже соединено!");
-      }
-    } else {
-      showPatternFeedback("✗ Неправильно!");
-    }
-  }
-  // Если палец отпущен далеко от точек - временная линия сбрасывается
-
-  // Сбрасываем активную точку
-  activePoint = null;
-  tempLine = null;
-
-  // Перерисовываем холст
-  clearCanvas();
-  drawPatternDots();
-}
-*/
 
 function stopDrawingPatternDots(e) {
   if (activePoint === null) return;
@@ -5107,42 +4964,39 @@ function checkForbiddenPath(pos) {
 }
 
 // Начало рисования для "Запретного цвета"
+// Начало рисования для "Запретного цвета"
 function startDrawingForbiddenColor(e) {
     e.preventDefault();
     if (exerciseCompleted) return;
-
     const pos = getPosition(e);
     let nearBlueIsland = false;
-
-    // Проверяем, находится ли точка касания рядом с любым синим островком
+    
     for (const island of currentExercise.blueIslands) {
-        // Переводим координаты островка в пиксели
-        const islandCenterX = island.x * canvas.width;
-        const islandCenterY = island.y * canvas.height;
+        // ИСПРАВЛЕНИЕ: не умножаем на canvas.width, так как x уже в пикселях
+        const islandCenterX = island.x;
+        const islandCenterY = island.y;
         
-        // Считаем расстояние от пальца до центра островка
         const dist = Math.sqrt(
-            Math.pow(pos.x - islandCenterX, 2) + 
+            Math.pow(pos.x - islandCenterX, 2) +
             Math.pow(pos.y - islandCenterY, 2)
         );
-
-        // Если попали в радиус островка (плюс небольшой допуск 20px для пальца)
+        
         if (dist <= island.r + 20) {
             nearBlueIsland = true;
             break;
         }
     }
-
+    
     if (!nearBlueIsland) {
         showForbiddenColorError('Начни от синего островка!');
         return;
     }
-
+    
     isDrawing = true;
     userPath = [pos];
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = "#4caf50"; // Зелёный для правильного пути
+    ctx.strokeStyle = "#4caf50";
     ctx.lineWidth = 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -5187,28 +5041,26 @@ function drawForbiddenColorWithCheck(pos) {
 
 // Проверка завершения: все ли синие островки посещены
 function checkForbiddenColorCompletion() {
-  let visitedCount = 0;
-
-  for (let island of currentExercise.blueIslands) {
-    const x = island.x * canvas.width;
-    const y = island.y * canvas.height;
-
-    // Проверяем, касался ли пользователь этого островка
-    for (let pos of userPath) {
-      if (Math.hypot(pos.x - x, pos.y - y) <= island.r + 12) {
-        visitedCount++;
-        break; // Переходим к следующему островку
-      }
+    let visitedCount = 0;
+    
+    for (let island of currentExercise.blueIslands) {
+        // ОСТАНОВИТЕСЬ: island.x уже в пикселях, не умножаем на canvas.width!
+        const x = island.x; 
+        const y = island.y;
+        
+        // Проверяем, касался ли пользователь этого островка
+        for (let pos of userPath) {
+            if (Math.hypot(pos.x - x, pos.y - y) <= island.r + 12) {
+                visitedCount++;
+                break; // Переходим к следующему островку
+            }
+        }
     }
-  }
-
-  // Если посещены ВСЕ синие островки и линия достаточно длинная
-  if (
-    visitedCount === currentExercise.blueIslands.length &&
-    userPath.length > 15
-  ) {
-    completeForbiddenColor();
-  }
+    
+    // Если посещены ВСЕ синие островки и линия достаточно длинная
+    if (visitedCount === currentExercise.blueIslands.length && userPath.length > 15) {
+        completeForbiddenColor();
+    }
 }
 
 // Завершение упражнения
