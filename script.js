@@ -55,18 +55,6 @@ let userDrawnPoints = []; // Точки, нарисованные пользов
 let segmentStartPoints = []; // Отслеживание прохождения через начальную точку каждого сегмента
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 25; // Допуск для попадания в контрольную точку (пиксели)
-// Переменные для "Найди и повтори"
-let filterShapes = []; // Массив фигур на левом поле
-let targetShape = null; // Целевая фигура для повторения
-let userFilterPath = []; // Путь пользователя
-let isDrawingFilter = false; // Флаг рисования
-const SHAPE_TYPES = ["line", "square", "circle", "triangle"];
-const COLORS = [
-  { name: "красный", hex: "#ff5252" },
-  { name: "жёлтый", hex: "#FFEB3B" },
-  { name: "зелёный", hex: "#4caf50" },
-  { name: "синий", hex: "#2196f3" }
-];
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -80,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.3b отладка"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.4b чистый"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -403,12 +391,6 @@ function getModuleExercises(moduleNum) {
       }
     ],
     5: [
-      {
-        title: "Найди и повтори",
-        type: "visual-filter",
-        instruction:
-          "Найди на левом поле и нарисуй в правильном месте на правом поле [ЦВЕТ] [ФИГУРА]"
-      },
       {
         title: "Рисуем Ромб",
         type: "pattern-dots",
@@ -911,10 +893,6 @@ function displayExercise(exercise) {
       if (currentExercise && currentExercise.type === "forbidden-color") {
         generateForbiddenColorIslands();
       }
-      // Генерируем фигуры для "Найди и повтори"
-      if (currentExercise && currentExercise.type === "visual-filter") {
-        generateFilterShapes();
-      }
       drawExerciseTemplate(currentExercise);
     }, 50);
   } else {
@@ -1056,10 +1034,7 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-  // Модуль 5: Найди и повтори
-  else if (currentExercise && currentExercise.type === "visual-filter") {
-    startDrawingVisualFilter(e);
-  }
+
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1098,10 +1073,7 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-  // Модуль 5: Найди и повтори
-  else if (currentExercise && currentExercise.type === "visual-filter") {
-    startDrawingVisualFilter(e);
-  }
+
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1304,14 +1276,6 @@ function stopDrawing(e) {
     return;
   }
 
-  // Модуль 5: Найди и повтори
-  if (currentExercise && currentExercise.type === "visual-filter") {
-    isDrawingFilter = false;
-    isDrawing = false; // <--- СБРОС ОБЩЕГО ФЛАГА
-    ctx.closePath();
-    return;
-  }
-
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
@@ -1365,289 +1329,6 @@ function getPosition(e) {
 // ============================================
 // МОДУЛЬ 5: ЗРИТЕЛЬНО-МОТОРНОЕ СООТНЕСЕНИЕ
 // ============================================
-
-// === УПРАЖНЕНИЕ "Найди и повтори" ===
-function generateFilterShapes() {
-  filterShapes = [];
-  const leftWidth = canvas.width / 2;
-  const leftHeight = canvas.height;
-
-  // Выбираем 3 уникальные фигуры и 3 уникальных цвета
-  const selectedShapes = shuffleArray(SHAPE_TYPES).slice(0, 3);
-  const selectedColors = shuffleArray(COLORS).slice(0, 3);
-
-  // Сопоставляем фигуры и цвета
-  selectedShapes.forEach((shape, i) => {
-    filterShapes.push({
-      type: shape,
-      color: selectedColors[i].hex,
-      colorName: selectedColors[i].name,
-      x: Math.random() * (leftWidth - 100) + 50,
-      y: Math.random() * (leftHeight - 100) + 50,
-      size: 60 + Math.random() * 40
-    });
-  });
-
-  // Выбираем случайную целевую фигуру
-  targetShape = filterShapes[Math.floor(Math.random() * filterShapes.length)];
-
-  // Обновляем инструкцию
-  document.getElementById("instruction").textContent =
-    `Найди на левом поле и нарисуй в правильном месте на правом поле ${targetShape.colorName} ${getShapeName(targetShape.type)}`;
-}
-
-function getShapeName(type) {
-  const names = {
-    line: "линию",
-    square: "квадрат",
-    circle: "круг",
-    triangle: "треугольник"
-  };
-  return names[type] || type;
-}
-
-function shuffleArray(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-// Отрисовка левого поля
-function drawFilterShapes() {
-  const leftWidth = canvas.width / 2;
-  ctx.clearRect(0, 0, leftWidth, canvas.height);
-  ctx.fillStyle = "#f5f5f5";
-  ctx.fillRect(0, 0, leftWidth, canvas.height);
-
-  // Рисуем все фигуры
-  filterShapes.forEach((shape) => {
-    ctx.strokeStyle = shape.color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-
-    switch (shape.type) {
-      case "line":
-        ctx.moveTo(shape.x - shape.size / 2, shape.y);
-        ctx.lineTo(shape.x + shape.size / 2, shape.y);
-        break;
-      case "square":
-        ctx.rect(
-          shape.x - shape.size / 2,
-          shape.y - shape.size / 2,
-          shape.size,
-          shape.size
-        );
-        break;
-      case "circle":
-        ctx.arc(shape.x, shape.y, shape.size / 2, 0, Math.PI * 2);
-        break;
-      case "triangle":
-        const r = shape.size / 2;
-        ctx.moveTo(shape.x, shape.y - r);
-        ctx.lineTo(shape.x - r, shape.y + r);
-        ctx.lineTo(shape.x + r, shape.y + r);
-        ctx.closePath();
-        break;
-    }
-    ctx.stroke();
-  });
-}
-
-function drawFilterWithCheck(pos) {
-  console.log("✏️ drawFilterWithCheck:", {
-    isDrawingFilter,
-    x: pos.x,
-    y: pos.y
-  }); // ← ОТЛАДКА
-
-  if (!isDrawingFilter) {
-    console.log("⚠️ isDrawingFilter = false, выход");
-    return;
-  }
-
-  // Проверяем, рисуем ли мы на правом поле
-  if (pos.x < canvas.width / 2) {
-    ctx.strokeStyle = "#ff5252"; // Красный если слева
-  } else {
-    ctx.strokeStyle = targetShape.color; // Цвет целевой фигуры
-  }
-
-  ctx.lineWidth = 4;
-  ctx.lineTo(pos.x, pos.y);
-  ctx.stroke();
-
-  // ПРОВЕРКА: вызываем checkFilterCompletion при достаточной длине
-  if (userFilterPath.length >= 50) {
-    console.log(
-      "✅ Вызываем checkFilterCompletion (length=" + userFilterPath.length + ")"
-    );
-    checkFilterCompletion();
-  }
-}
-
-function checkFilterCompletion() {
-
-	    // === БАЗОВАЯ ОТЛАДКА ===
-    console.group('🔍 checkFilterCompletion');
-    console.log('  isDrawingFilter:', isDrawingFilter);
-    console.log('  userFilterPath.length:', userFilterPath?.length ?? 'undefined');
-    console.log('  targetShape:', targetShape);
-    console.log('  canvas.width:', canvas?.width ?? 'undefined');
-    console.groupEnd();
-	
-	// === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
-  const analysis = analyzeDrawnShape(userFilterPath);
-
-  console.log("🏁 Проверка завершения упражнения");
-
-  if (userFilterPath.length < 50) {
-    console.log("⏳ Путь слишком короткий:", userFilterPath.length);
-    return;
-  }
-
-  console.log("📊 Результат анализа:", analysis);
-  console.log("🎨 Анализ фигуры:");
-  console.log("  - Целевая фигура:", targetShape.type, targetShape.colorName);
-  console.log("  - Нарисовано точек:", userFilterPath.length);
-  console.log("  - Bounding box:", analysis.bbox);
-  console.log("  - Соотношение сторон:", analysis.aspectRatio.toFixed(2));
-  console.log("  - Определённый тип:", analysis.detectedType);
-
-  // Проверяем, что рисовали на правом поле
-  let rightSidePoints = 0;
-  for (let pos of userFilterPath) {
-    if (pos.x > canvas.width / 2) {
-      rightSidePoints++;
-    }
-  }
-
-  if (rightSidePoints < userFilterPath.length * 0.7) {
-    console.log("❌ Ошибка: мало точек на правом поле");
-    showFeedback("⚠️ Рисуй на правом поле!", "error");
-    setTimeout(() => {
-      clearCanvas();
-      drawExerciseTemplate(currentExercise);
-      userFilterPath = [];
-    }, 1500);
-    return;
-  }
-
-  // === ПРОВЕРКА СООТВЕТСТВИЯ ФИГУРЫ ===
-  if (analysis.detectedType === targetShape.type) {
-    console.log("✅ Фигура совпадает!");
-    exerciseCompleted = true;
-    isDrawingFilter = false;
-    showFeedback("✓ Отлично! Фигура повторена!", "success");
-    setTimeout(nextExercise, 1500);
-  } else {
-    console.log(
-      `❌ Фигура не совпадает: ожидалось ${targetShape.type}, определено ${analysis.detectedType}`
-    );
-    showFeedback(
-      `⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`,
-      "error"
-    );
-    setTimeout(() => {
-      clearCanvas();
-      drawExerciseTemplate(currentExercise);
-      userFilterPath = [];
-    }, 1500);
-  }
-}
-
-// Анализ нарисованной фигуры
-function analyzeDrawnShape(path) {
-  if (path.length < 10)
-    return {
-      detectedType: "unknown",
-      aspectRatio: 0,
-      bbox: {},
-      colorMatch: false
-    };
-
-  console.log("🔍 Анализ пути:", path.length, "точек");
-
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  for (let pos of path) {
-    minX = Math.min(minX, pos.x);
-    maxX = Math.max(maxX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxY = Math.max(maxY, pos.y);
-  }
-
-  const width = maxX - minX;
-  const height = maxY - minY;
-  const aspectRatio = width / height;
-  const bbox = { minX, maxX, minY, maxY, width, height };
-
-  console.log("📐 Bounding box:", bbox);
-  console.log("📏 Соотношение сторон:", aspectRatio.toFixed(2));
-
-  let detectedType = "unknown";
-  if (width < 30 || height < 30) {
-    detectedType = "too_small";
-  } else if (aspectRatio > 3 || aspectRatio < 0.33) {
-    detectedType = "line";
-  } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
-    detectedType = "square";
-  } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
-    detectedType = "triangle";
-  }
-
-  console.log("🎯 Определённый тип:", detectedType);
-
-  return {
-    detectedType,
-    aspectRatio,
-    bbox,
-    colorMatch: true
-  };
-}
-
-function showFeedback(message, type) {
-  const feedback = document.getElementById("feedback");
-  feedback.textContent = message;
-  feedback.className = "feedback " + (type === "success" ? "success" : "error");
-  feedback.classList.remove("hidden");
-
-  setTimeout(() => {
-    feedback.classList.add("hidden");
-  }, 2000);
-}
-
-function startDrawingVisualFilter(e) {
-    e.preventDefault();
-    console.log('🖐️ startDrawingVisualFilter вызвана'); // ← ОТЛАДКА
-    
-    if (exerciseCompleted || !targetShape) return;
-    
-    const pos = getPosition(e);
-    console.log('   Позиция:', pos, 'canvas.width/2:', canvas.width/2);
-    
-    if (pos.x < canvas.width / 2) {
-        console.log('⚠️ Касание слева, выход');
-        return;
-    }
-    
-    isDrawingFilter = true;
-    isDrawing = true;
-    console.log('✅ Флаги установлены: isDrawingFilter=', isDrawingFilter, 'isDrawing=', isDrawing);
-    
-    userFilterPath = [pos];
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = targetShape.color;
-    ctx.lineWidth = 4;
-}
-
-// === КОНЕЦ УПРАЖНЕНИЯ "Найди и повтори" === //
-
-// ===========================================УБРАТЬ?====================== //
 
 // Начало рисования зеркальной елочки
 function startDrawingMirrorTree(e) {
@@ -2775,10 +2456,6 @@ function drawExerciseTemplate(exercise) {
       break;
     case "pattern-dots":
       drawPatternDots();
-      break;
-    // Модуль 5: Найди и повтори
-    case "visual-filter":
-      drawVisualFilterTemplate();
       break;
 
     // Модуль 6: Графические диктанты
@@ -6034,63 +5711,6 @@ function resetGridExercise() {
 
   // Обновляем счетчик
   document.getElementById("current-step").textContent = "0";
-}
-
-// ============================================
-// Шаблон для упражнения "Найди и повтори"
-// ============================================
-function drawVisualFilterTemplate() {
-  const halfW = canvas.width / 2;
-  const halfH = canvas.height;
-
-  // 1. Фон
-  ctx.fillStyle = "#f5f5f5"; // Серый фон слева
-  ctx.fillRect(0, 0, halfW, halfH);
-  ctx.fillStyle = "#ffffff"; // Белый фон справа
-  ctx.fillRect(halfW, 0, halfW, halfH);
-
-  // 2. Разделительная линия
-  ctx.strokeStyle = "#4caf50";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(halfW, 0);
-  ctx.lineTo(halfW, halfH);
-  ctx.stroke();
-
-  // 3. Рисуем фигуры на левом поле
-  filterShapes.forEach((shape) => {
-    ctx.strokeStyle = shape.color;
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-
-    switch (shape.type) {
-      case "line":
-        ctx.moveTo(shape.x - shape.size / 2, shape.y);
-        ctx.lineTo(shape.x + shape.size / 2, shape.y);
-        break;
-      case "square":
-        ctx.rect(
-          shape.x - shape.size / 2,
-          shape.y - shape.size / 2,
-          shape.size,
-          shape.size
-        );
-        break;
-      case "circle":
-        ctx.arc(shape.x, shape.y, shape.size / 2, 0, Math.PI * 2);
-        break;
-      case "triangle":
-        const r = shape.size / 2;
-        ctx.moveTo(shape.x, shape.y - r);
-        ctx.lineTo(shape.x - r, shape.y + r);
-        ctx.lineTo(shape.x + r, shape.y + r);
-        ctx.closePath();
-        break;
-    }
-    ctx.stroke();
-  });
 }
 
 // В глобальной области (после всех функций)
