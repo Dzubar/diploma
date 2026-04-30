@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.8b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.9b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1295,7 +1295,7 @@ function draw(e) {
 function stopDrawing(e) {
   if (!isDrawing) return;
   e.preventDefault();
-  isDrawing = false;
+  // isDrawing = false; // Дублируется???
   ctx.closePath();
 
   // Модуль 5: Узор по точкам
@@ -1454,186 +1454,154 @@ function drawFilterShapes() {
     ctx.stroke();
   });
 }
-//  Правое поле и проверка
-function startDrawingFilter(e) {
-  e.preventDefault();
-  const pos = getPosition(e);
-  if (pos.x < canvas.width / 2) return; // Только правое поле
-
-  isDrawingFilter = true;
-  userFilterPath = [pos];
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
-  ctx.strokeStyle = targetShape.color;
-  ctx.lineWidth = 4;
-}
 
 function drawFilterWithCheck(pos) {
-    if (!isDrawingFilter) return;
-    userFilterPath.push(pos);
-    
-    // Проверяем, рисуем ли мы на правом поле
-    if (pos.x < canvas.width / 2) {
-        ctx.strokeStyle = "#ff5252"; // Красный если слева
-    } else {
-        ctx.strokeStyle = targetShape.color; // Цвет целевой фигуры
-    }
-    
-    ctx.lineWidth = 4;
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    
-    // Проверяем завершение
-    if (userFilterPath.length > 50) {
-        checkFilterCompletion();
-    }
+  if (!isDrawingFilter) return;
+  userFilterPath.push(pos);
+
+  // Проверяем, рисуем ли мы на правом поле
+  if (pos.x < canvas.width / 2) {
+    ctx.strokeStyle = "#ff5252"; // Красный если слева
+  } else {
+    ctx.strokeStyle = targetShape.color; // Цвет целевой фигуры
+  }
+
+  ctx.lineWidth = 4;
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+
+  // Проверяем завершение
+  if (userFilterPath.length > 50) {
+    checkFilterCompletion();
+  }
 }
 
 function checkFilterCompletion() {
-    if (userFilterPath.length < 50) return;
-    
-    // === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
-    const analysis = analyzeDrawnShape(userFilterPath);
-    
-    console.log('🎨 Анализ фигуры:');
-    console.log('  - Целевая фигура:', targetShape.type, targetShape.colorName);
-    console.log('  - Нарисовано точек:', userFilterPath.length);
-    console.log('  - Bounding box:', analysis.bbox);
-    console.log('  - Соотношение сторон:', analysis.aspectRatio.toFixed(2));
-    console.log('  - Определённый тип:', analysis.detectedType);
-    
-    // Проверяем, что рисовали на правом поле
-    let rightSidePoints = 0;
-    for (let pos of userFilterPath) {
-        if (pos.x > canvas.width / 2) {
-            rightSidePoints++;
-        }
+  if (userFilterPath.length < 50) return;
+
+  // === АНАЛИЗ НАРИСОВАННОЙ ФИГУРЫ ===
+  const analysis = analyzeDrawnShape(userFilterPath);
+
+  console.log("🏁 Проверка завершения упражнения");
+
+  if (userFilterPath.length < 50) {
+    console.log("⏳ Путь слишком короткий:", userFilterPath.length);
+    return;
+  }
+
+  const analysis = analyzeDrawnShape(userFilterPath);
+  console.log("📊 Результат анализа:", analysis);
+
+  console.log("🎨 Анализ фигуры:");
+  console.log("  - Целевая фигура:", targetShape.type, targetShape.colorName);
+  console.log("  - Нарисовано точек:", userFilterPath.length);
+  console.log("  - Bounding box:", analysis.bbox);
+  console.log("  - Соотношение сторон:", analysis.aspectRatio.toFixed(2));
+  console.log("  - Определённый тип:", analysis.detectedType);
+
+  // Проверяем, что рисовали на правом поле
+  let rightSidePoints = 0;
+  for (let pos of userFilterPath) {
+    if (pos.x > canvas.width / 2) {
+      rightSidePoints++;
     }
-    
-    if (rightSidePoints < userFilterPath.length * 0.7) {
-        console.log('❌ Ошибка: мало точек на правом поле');
-        showFeedback("⚠️ Рисуй на правом поле!", "error");
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
-        return;
-    }
-    
-    // === ПРОВЕРКА СООТВЕТСТВИЯ ФИГУРЫ ===
-    if (analysis.detectedType === targetShape.type) {
-        console.log('✅ Фигура совпадает!');
-        exerciseCompleted = true;
-        isDrawingFilter = false;
-        showFeedback("✓ Отлично! Фигура повторена!", "success");
-        setTimeout(nextExercise, 1500);
-    } else {
-        console.log(`❌ Фигура не совпадает: ожидалось ${targetShape.type}, определено ${analysis.detectedType}`);
-        showFeedback(`⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`, "error");
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
-    }
+  }
+
+  if (rightSidePoints < userFilterPath.length * 0.7) {
+    console.log("❌ Ошибка: мало точек на правом поле");
+    showFeedback("⚠️ Рисуй на правом поле!", "error");
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userFilterPath = [];
+    }, 1500);
+    return;
+  }
+
+  // === ПРОВЕРКА СООТВЕТСТВИЯ ФИГУРЫ ===
+  if (analysis.detectedType === targetShape.type) {
+    console.log("✅ Фигура совпадает!");
+    exerciseCompleted = true;
+    isDrawingFilter = false;
+    showFeedback("✓ Отлично! Фигура повторена!", "success");
+    setTimeout(nextExercise, 1500);
+  } else {
+    console.log(
+      `❌ Фигура не совпадает: ожидалось ${targetShape.type}, определено ${analysis.detectedType}`
+    );
+    showFeedback(
+      `⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`,
+      "error"
+    );
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userFilterPath = [];
+    }, 1500);
+  }
 }
 
 // Анализ нарисованной фигуры
 function analyzeDrawnShape(path) {
-    if (path.length < 10) return { detectedType: 'unknown', aspectRatio: 0, bbox: {} };
-    
-    // Находим bounding box
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let pos of path) {
-        minX = Math.min(minX, pos.x);
-        maxX = Math.max(maxX, pos.x);
-        minY = Math.min(minY, pos.y);
-        maxY = Math.max(maxY, pos.y);
-    }
-    
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const aspectRatio = width / height;
-    
-    const bbox = { minX, maxX, minY, maxY, width, height };
-    
-    // Определяем тип фигуры по соотношению сторон
-    let detectedType = 'unknown';
-    
-    if (width < 30 || height < 30) {
-        detectedType = 'too_small'; // Слишком мелко
-    } else if (aspectRatio > 3 || aspectRatio < 0.33) {
-        detectedType = 'line'; // Линия (очень узкая и длинная)
-    } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
-        // Квадрат или круг (соотношение близко к 1)
-        // Для простоты считаем квадратом
-        detectedType = 'square';
-    } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
-        // Треугольник или прямоугольник
-        detectedType = 'triangle';
-    }
-    
+  if (path.length < 10)
     return {
-        detectedType,
-        aspectRatio,
-        bbox
+      detectedType: "unknown",
+      aspectRatio: 0,
+      bbox: {},
+      colorMatch: false
     };
-}
 
-// Анализ нарисованной фигуры
-function analyzeDrawnShape(path) {
-    if (path.length < 10) return { detectedType: 'unknown', aspectRatio: 0, bbox: {}, colorMatch: false };
-    
-    // Находим bounding box
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let pos of path) {
-        minX = Math.min(minX, pos.x);
-        maxX = Math.max(maxX, pos.x);
-        minY = Math.min(minY, pos.y);
-        maxY = Math.max(maxY, pos.y);
-    }
-    
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const aspectRatio = width / height;
-    
-    const bbox = { minX, maxX, minY, maxY, width, height };
-    
-    // Определяем тип фигуры по соотношению сторон и другим признакам
-    let detectedType = 'unknown';
-    
-    if (width < 30 || height < 30) {
-        detectedType = 'too_small'; // Слишком мелко
-    } else if (aspectRatio > 3 || aspectRatio < 0.33) {
-        detectedType = 'line'; // Линия (очень узкая и длинная)
-    } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
-        // Квадрат или круг (соотношение близко к 1)
-        // Для простоты считаем квадратом (круг сложнее определить без анализа кривизны)
-        detectedType = 'square';
-    } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
-        // Треугольник или прямоугольник
-        // Для простоты считаем треугольником
-        detectedType = 'triangle';
-    }
-    
-    return {
-        detectedType,
-        aspectRatio,
-        bbox,
-        colorMatch: true // Цвет не проверяем, так как рисуем цветом targetShape
-    };
+  console.log("🔍 Анализ пути:", path.length, "точек");
+
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  for (let pos of path) {
+    minX = Math.min(minX, pos.x);
+    maxX = Math.max(maxX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxY = Math.max(maxY, pos.y);
+  }
+
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const aspectRatio = width / height;
+  const bbox = { minX, maxX, minY, maxY, width, height };
+
+  console.log("📐 Bounding box:", bbox);
+  console.log("📏 Соотношение сторон:", aspectRatio.toFixed(2));
+
+  let detectedType = "unknown";
+  if (width < 30 || height < 30) {
+    detectedType = "too_small";
+  } else if (aspectRatio > 3 || aspectRatio < 0.33) {
+    detectedType = "line";
+  } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
+    detectedType = "square";
+  } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
+    detectedType = "triangle";
+  }
+
+  console.log("🎯 Определённый тип:", detectedType);
+
+  return {
+    detectedType,
+    aspectRatio,
+    bbox,
+    colorMatch: true
+  };
 }
 
 function showFeedback(message, type) {
-    const feedback = document.getElementById("feedback");
-    feedback.textContent = message;
-    feedback.className = "feedback " + (type === "success" ? "success" : "error");
-    feedback.classList.remove("hidden");
-    
-    setTimeout(() => {
-        feedback.classList.add("hidden");
-    }, 2000);
+  const feedback = document.getElementById("feedback");
+  feedback.textContent = message;
+  feedback.className = "feedback " + (type === "success" ? "success" : "error");
+  feedback.classList.remove("hidden");
+
+  setTimeout(() => {
+    feedback.classList.add("hidden");
+  }, 2000);
 }
 
 function startDrawingVisualFilter(e) {
