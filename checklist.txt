@@ -14,3 +14,17 @@
 12 - УПРОСТИЛ упражнение Домик
 
 13 - 
+
+====================================================================================================
+Категория	Функции
+**🌐 Глобальные/Системные**	`logVersion`, `initUser`, `updateUserNameUI`, `logoutAndClearData`, `loadStats`, `saveStats`, `showMainMenu`, `showExercises`, `showResults`, `showInfo`, `hideAllScreens`, `startLesson`, `loadModule`, `getModuleExercises`, `nextExercise`, `exitExercise`, `updateResultsDisplay`, `resetStats`, `displayExercise`, `initCanvas`, `resizeCanvas`, `clearCanvas`, `showHint`, `handleCanvasTouch`, `handleCanvasClick`, `checkPointPlacement`, `drawSuccessPoint`, `drawErrorPoint`, `animateSuccess`, `showSuccessFeedback`, `showErrorFeedback`, `startDrawing`, `draw`, `stopDrawing`, `getPosition`, `vibrateDevice`
+** Модуль 1: Точечные**	`drawCenterTarget`, `drawTopTarget`, `drawBottomTarget`, `drawLeftTarget`, `drawRightTarget`
+**🛤️ Модуль 2: Дорожки**	`startDrawingPath`, `drawPathWithCheck`, `getDistanceToPath`, `checkPathFinish`, `completePathExercise`, `drawFinishMark`, `drawStraightPath`, `drawVerticalPath`, `drawZigzagPath`, `drawWavePath`, `drawSpiralPath`
+**🧩 Модуль 3: Элементы**	`drawPathLines`, `drawPathDiagonal`, `drawPathCircles`, `drawPathArcs`, `drawPathLoops`
+**🔁 Модуль 4: Серийность**	`drawRhythmicFence`, `drawWaveCliff`, `drawRhythmicSpiral`, `drawMeanderWall`, `drawCombinedChain`
+**👁️ Модуль 5: Ёлочка**	`startDrawingMirrorTree`, `drawMirrorTreeWithCheck`, `checkMirrorSubTaskCompletion`, `distanceToSegment`, `checkMirrorTreeCompletion`, `showMirrorTreeError`, `showMirrorFeedback`, `completeMirrorTree`, `drawMirrorTreeTemplate`
+**🔵 Модуль 5: Узор по точкам**	`drawPatternDots`, `getPointAtPosition`, `isValidConnection`, `checkPatternCompletion`, `startDrawingPatternDots`, `drawPatternDotsWithCheck`, `stopDrawingPatternDots`, `showPatternFeedback`, `completePatternDotsExercise`, `getNextTargetPoint`
+**🔍 Модуль 5: Найди и повтори**	`generateFilterShapes`, `getShapeName`, `shuffleArray`, `drawFilterShapes`, `startDrawingFilter`, `drawFilterWithCheck`, `checkFilterCompletion`, `analyzeDrawnShape` (×2!), `showFeedback`, `startDrawingVisualFilter`, `drawVisualFilterTemplate`
+**🚫 Модуль 7: Запретный цвет**	`drawForbiddenColorTemplate`, `handleForbiddenColorTouch`, `isForbiddenColor`, `checkForbiddenPath`, `startDrawingForbiddenColor`, `drawForbiddenColorWithCheck`, `checkForbiddenColorCompletion`, `completeForbiddenColor`, `showForbiddenColorError`, `generateForbiddenColorIslands`
+**📐 Модуль 6: Диктанты**	`drawGridTemplate`, `drawGridStartPoint`, `drawSnakeTargetCells`, `moveDirection`, `drawGridLine`, `showGridMountainError`, `showGridError`, `completeGridExercise`, `resetGridExercise`
+**🛠️ Остальные шаблоны**	`drawLineGuide`, `drawPath`, `drawWaveGuide`, `drawLinesTemplate`, `drawOvalsTemplate`, `drawPatternTemplate`, `drawCopyTemplate`, `drawGrid`, `drawDefaultTemplate`
