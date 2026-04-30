@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.9b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.0b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1489,9 +1489,7 @@ function checkFilterCompletion() {
     return;
   }
 
-  const analysis = analyzeDrawnShape(userFilterPath);
   console.log("📊 Результат анализа:", analysis);
-
   console.log("🎨 Анализ фигуры:");
   console.log("  - Целевая фигура:", targetShape.type, targetShape.colorName);
   console.log("  - Нарисовано точек:", userFilterPath.length);
