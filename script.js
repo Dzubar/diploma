@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.1b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.2b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -874,15 +874,6 @@ function displayExercise(exercise) {
     patternStartPoint = exercise.startPoint || null;
   }
 
-	// Упражнение "Найди и повтори"
-	if (exercise.type === 'visual-filter') {
-    generateFilterShapes();
-    drawFilterShapes();
-    // Очистка правого поля
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(canvas.width/2, 0, canvas.width/2, canvas.height);
-}
-	
   // Показываем/скрываем соответствующие элементы управления
   const regularControls = document.querySelector(".controls");
   const gridControls = document.getElementById("grid-controls");
@@ -919,6 +910,10 @@ function displayExercise(exercise) {
       // Генерируем случайные островки ПЕРЕД отрисовкой для "Запретного цвета"
       if (currentExercise && currentExercise.type === "forbidden-color") {
         generateForbiddenColorIslands();
+      }
+      // Генерируем фигуры для "Найди и повтори"
+      if (currentExercise && currentExercise.type === "visual-filter") {
+        generateFilterShapes();
       }
       drawExerciseTemplate(currentExercise);
     }, 50);
@@ -1061,10 +1056,10 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-		// Модуль 5: Найди и повтори
-else if (currentExercise && currentExercise.type === "visual-filter") {
+  // Модуль 5: Найди и повтори
+  else if (currentExercise && currentExercise.type === "visual-filter") {
     startDrawingVisualFilter(e);
-}
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1103,10 +1098,10 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-		// Модуль 5: Найди и повтори
-else if (currentExercise && currentExercise.type === "visual-filter") {
+  // Модуль 5: Найди и повтори
+  else if (currentExercise && currentExercise.type === "visual-filter") {
     startDrawingVisualFilter(e);
-}
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1267,11 +1262,11 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
-	// Модуль 5: Найди и повтори
-if (currentExercise && currentExercise.type === "visual-filter") {
+  // Модуль 5: Найди и повтори
+  if (currentExercise && currentExercise.type === "visual-filter") {
     drawVisualFilterWithCheck(pos);
     return;
-}
+  }
 
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1314,12 +1309,12 @@ function stopDrawing(e) {
     return;
   }
 
-	// Модуль 5: Найди и повтори
-if (currentExercise && currentExercise.type === "visual-filter") {
+  // Модуль 5: Найди и повтори
+  if (currentExercise && currentExercise.type === "visual-filter") {
     isDrawingFilter = false;
     ctx.closePath();
     return;
-}
+  }
 
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1497,6 +1492,20 @@ function checkFilterCompletion() {
     showFeedback("✓ Отлично! Фигура повторена!", "success");
     setTimeout(nextExercise, 1500);
   }
+}
+
+function startDrawingVisualFilter(e) {
+  e.preventDefault();
+  if (exerciseCompleted) return; // ← ДОБАВЛЕНО
+  const pos = getPosition(e);
+  if (pos.x < canvas.width / 2) {
+    showFeedback("Рисуй только на правом поле!", "error");
+    return;
+  }
+  isDrawingFilter = true;
+  userFilterPath = [pos];
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
 }
 
 // === КОНЕЦ УПРАЖНЕНИЯ "Найди и повтори" === //
@@ -2630,10 +2639,10 @@ function drawExerciseTemplate(exercise) {
     case "pattern-dots":
       drawPatternDots();
       break;
-			// Модуль 5: Найди и повтори
-case "visual-filter":
-    drawVisualFilterTemplate();
-    break;
+    // Модуль 5: Найди и повтори
+    case "visual-filter":
+      drawVisualFilterTemplate();
+      break;
 
     // Модуль 6: Графические диктанты
     case "grid-square":
@@ -5888,6 +5897,63 @@ function resetGridExercise() {
 
   // Обновляем счетчик
   document.getElementById("current-step").textContent = "0";
+}
+
+// ============================================
+// Шаблон для упражнения "Найди и повтори"
+// ============================================
+function drawVisualFilterTemplate() {
+  const halfW = canvas.width / 2;
+  const halfH = canvas.height;
+
+  // 1. Фон
+  ctx.fillStyle = "#f5f5f5"; // Серый фон слева
+  ctx.fillRect(0, 0, halfW, halfH);
+  ctx.fillStyle = "#ffffff"; // Белый фон справа
+  ctx.fillRect(halfW, 0, halfW, halfH);
+
+  // 2. Разделительная линия
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(halfW, 0);
+  ctx.lineTo(halfW, halfH);
+  ctx.stroke();
+
+  // 3. Рисуем фигуры на левом поле
+  filterShapes.forEach((shape) => {
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+
+    switch (shape.type) {
+      case "line":
+        ctx.moveTo(shape.x - shape.size / 2, shape.y);
+        ctx.lineTo(shape.x + shape.size / 2, shape.y);
+        break;
+      case "square":
+        ctx.rect(
+          shape.x - shape.size / 2,
+          shape.y - shape.size / 2,
+          shape.size,
+          shape.size
+        );
+        break;
+      case "circle":
+        ctx.arc(shape.x, shape.y, shape.size / 2, 0, Math.PI * 2);
+        break;
+      case "triangle":
+        const r = shape.size / 2;
+        ctx.moveTo(shape.x, shape.y - r);
+        ctx.lineTo(shape.x - r, shape.y + r);
+        ctx.lineTo(shape.x + r, shape.y + r);
+        ctx.closePath();
+        break;
+    }
+    ctx.stroke();
+  });
 }
 
 // В глобальной области (после всех функций)
