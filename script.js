@@ -68,7 +68,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.4b чистый"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.5b чистый"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1267,7 +1267,7 @@ function draw(e) {
 function stopDrawing(e) {
   if (!isDrawing) return;
   e.preventDefault();
-  // isDrawing = false; // Дублируется???
+  isDrawing = false;
   ctx.closePath();
 
   // Модуль 5: Узор по точкам
@@ -1299,6 +1299,7 @@ function stopDrawing(e) {
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
+
 
 /*
 function getPosition(e) {
