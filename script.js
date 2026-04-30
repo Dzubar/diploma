@@ -80,7 +80,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.1.5b"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.1.6b"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -1469,79 +1469,115 @@ function startDrawingFilter(e) {
 }
 
 function drawFilterWithCheck(pos) {
-  if (!isDrawingFilter) return;
-  userFilterPath.push(pos);
-  ctx.lineTo(pos.x, pos.y);
-  ctx.stroke();
-
-  // Простая проверка завершения (по длине пути)
-  if (userFilterPath.length > 50) {
-    checkFilterCompletion();
-  }
+    if (!isDrawingFilter) return;
+    userFilterPath.push(pos);
+    
+    // Проверяем, рисуем ли мы на правом поле
+    if (pos.x < canvas.width / 2) {
+        ctx.strokeStyle = "#ff5252"; // Красный если слева
+    } else {
+        ctx.strokeStyle = targetShape.color; // Цвет целевой фигуры
+    }
+    
+    ctx.lineWidth = 4;
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    
+    // Проверяем завершение
+    if (userFilterPath.length > 50) {
+        checkFilterCompletion();
+    }
 }
 
 function checkFilterCompletion() {
-  if (!targetShape || userFilterPath.length < 30) return;
-
-  // 1. Находим bounding box нарисованной фигуры
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  for (let pos of userFilterPath) {
-    minX = Math.min(minX, pos.x);
-    maxX = Math.max(maxX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxY = Math.max(maxY, pos.y);
-  }
-
-  const width = maxX - minX;
-  const height = maxY - minY;
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-  const aspectRatio = width / height;
-
-  // 2. Проверяем, что фигура нарисована справа (в зоне ответа)
-  if (centerX < canvas.width / 2) return; // Игнорируем рисование слева
-
-  // 3. Проверяем соответствие типу фигуры с допусками для детского рисования
-  let shapeMatches = false;
-  switch (targetShape.type) {
-    case "square":
-      // Квадрат: стороны примерно равны (допуск 0.5 - 1.5)
-      shapeMatches = aspectRatio > 0.5 && aspectRatio < 1.5;
-      break;
-    case "circle":
-      // Круг: стороны примерно равны (чуть строже)
-      shapeMatches = aspectRatio > 0.7 && aspectRatio < 1.3;
-      break;
-    case "triangle":
-      // Треугольник: соотношение может быть разным (0.4 - 2.0)
-      shapeMatches = aspectRatio > 0.4 && aspectRatio < 2.0;
-      break;
-    case "line":
-      // Линия: одна сторона значительно больше другой
-      shapeMatches = aspectRatio > 3 || aspectRatio < 0.33;
-      break;
-  }
-
-  // 4. Проверяем, что фигура достаточно крупная
-  const sizeMatches = Math.max(width, height) > 40; // Минимум 40px
-
-  // 5. Если все проверки пройдены - успех!
-  if (shapeMatches && sizeMatches) {
+    // Проверяем, что нарисовано достаточно точек
+    if (userFilterPath.length < 50) return;
+    
+    // 1. Проверяем, что рисовали на правом поле
+    let rightSidePoints = 0;
+    for (let pos of userFilterPath) {
+        if (pos.x > canvas.width / 2) {
+            rightSidePoints++;
+        }
+    }
+    
+    if (rightSidePoints < userFilterPath.length * 0.7) {
+        // 70% точек должны быть справа
+        showFeedback("⚠️ Рисуй на правом поле!", "error");
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1000);
+        return;
+    }
+    
+    // 2. Проверяем форму (упрощенно - по bounding box)
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let pos of userFilterPath) {
+        minX = Math.min(minX, pos.x);
+        maxX = Math.max(maxX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxY = Math.max(maxY, pos.y);
+    }
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const aspectRatio = width / height;
+    
+    let shapeMatches = false;
+    switch (targetShape.type) {
+        case "line":
+            shapeMatches = aspectRatio > 3 || aspectRatio < 0.33;
+            break;
+        case "square":
+            shapeMatches = aspectRatio > 0.7 && aspectRatio < 1.3;
+            break;
+        case "circle":
+            shapeMatches = aspectRatio > 0.7 && aspectRatio < 1.3;
+            break;
+        case "triangle":
+            shapeMatches = aspectRatio > 0.5 && aspectRatio < 1.5;
+            break;
+    }
+    
+    if (!shapeMatches) {
+        showFeedback("⚠️ Не похоже на " + getShapeName(targetShape.type) + "!", "error");
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1500);
+        return;
+    }
+    
+    // 3. Проверяем размер (не слишком маленький)
+    if (Math.max(width, height) < 40) {
+        showFeedback("⚠️ Слишком мелко! Рисуй крупнее", "error");
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1500);
+        return;
+    }
+    
+    // ✅ ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ
     exerciseCompleted = true;
     isDrawingFilter = false;
+    showFeedback("✓ Отлично! Фигура повторена!", "success");
+    setTimeout(nextExercise, 1500);
+}
 
+function showFeedback(message, type) {
     const feedback = document.getElementById("feedback");
-    feedback.textContent = `✓ Отлично! Ты нашёл и нарисовал ${targetShape.colorName} ${getShapeName(targetShape.type)}!`;
-    feedback.className = "feedback success";
+    feedback.textContent = message;
+    feedback.className = "feedback " + (type === "success" ? "success" : "error");
     feedback.classList.remove("hidden");
-
+    
     setTimeout(() => {
-      nextExercise();
-    }, 1500);
-  }
+        feedback.classList.add("hidden");
+    }, 2000);
 }
 
 function startDrawingVisualFilter(e) {
