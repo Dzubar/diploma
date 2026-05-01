@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Графо-моторные навыки - Система упражнений</title>
+    <link rel="stylesheet" crossorigin href="/assets/index-DnOEQYBO.css">
+  </head>
+
+  <body>
+    <div class="container">
+      <header>
+        <h1>Графо-моторные навыки</h1>
+        <p class="subtitle">
+          Система упражнений для детей
+          <span id="user-name-tag" class="user-tag"></span>
+        </p>
+      </header>
+
+      <main class="main-menu">
+        <button class="menu-btn primary" onclick="startLesson()">
+          <span class="icon">▶</span>
+          Начать занятие
+        </button>
+
+        <button class="menu-btn" onclick="showExercises()">
+          <span class="icon">📋</span>
+          Выбрать упражнение
+        </button>
+
+        <button class="menu-btn" onclick="showResults()">
+          <span class="icon">📊</span>
+          Мои результаты
+        </button>
+
+        <button class="menu-btn" onclick="showInfo()">
+          <span class="icon">ℹ️</span>
+          Для взрослого
+        </button>
+
+        <button class="menu-btn danger-btn" onclick="logoutAndClearData()">
+          <span class="icon">🚪</span>
+          Выйти и очистить данные
+        </button>
+      </main>
+
+      <div id="exercises-menu" class="hidden">
+        <button class="back-btn" onclick="showMainMenu()">← Назад</button>
+        <h2>Выберите модуль</h2>
+        <div class="modules-grid">
+          <button class="module-btn" onclick="loadModule(1)">
+            <span class="module-number">1</span>
+            <span class="module-title">Ориентировка на плоскости</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(2)">
+            <span class="module-number">2</span>
+            <span class="module-title">Дорожки и траектории</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(3)">
+            <span class="module-number">3</span>
+            <span class="module-title">Базовые элементы</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(4)">
+            <span class="module-number">4</span>
+            <span class="module-title">Серийность движений</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(5)">
+            <span class="module-number">5</span>
+            <span class="module-title">Копирование образца</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(6)">
+            <span class="module-number">6</span>
+            <span class="module-title">Графические диктанты</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(7)">
+            <span class="module-number">7</span>
+            <span class="module-title">Самоконтроль</span>
+          </button>
+          <button class="module-btn" onclick="loadModule(8)">
+            <span class="module-number">8</span>
+            <span class="module-title">Игровые упражнения</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="exercise-screen" class="hidden">
+        <div class="exercise-header">
+          <button class="back-btn" onclick="exitExercise()">← Выход</button>
+          <h3 id="exercise-title">Упражнение</h3>
+        </div>
+        <div id="instruction" class="instruction"></div>
+        <div class="canvas-container">
+          <canvas id="canvas"></canvas>
+        </div>
+        <div class="controls">
+          <button class="control-btn" onclick="clearCanvas()">
+            🗑️ Очистить
+          </button>
+          <button class="control-btn" onclick="showHint()">💡 Подсказка</button>
+          <button class="control-btn primary" onclick="nextExercise()">
+            Дальше →
+          </button>
+        </div>
+
+        <!-- Кнопки управления для Модуля 6 (Графические диктанты) -->
+        <div class="grid-controls hidden" id="grid-controls">
+          <div class="arrow-buttons">
+            <button class="arrow-btn" id="btn-up" onclick="moveDirection('up')">
+              <span class="arrow">↑</span>
+            </button>
+            <div class="arrow-row">
+              <button
+                class="arrow-btn"
+                id="btn-left"
+                onclick="moveDirection('left')"
+              >
+                <span class="arrow">←</span>
+              </button>
+              <button
+                class="arrow-btn"
+                id="btn-right"
+                onclick="moveDirection('right')"
+              >
+                <span class="arrow">→</span>
+              </button>
+            </div>
+            <button
+              class="arrow-btn"
+              id="btn-down"
+              onclick="moveDirection('down')"
+            >
+              <span class="arrow">↓</span>
+            </button>
+          </div>
+          <div class="grid-info">
+            <div class="step-counter">
+              Шаг:
+              <span id="current-step">0</span>
+              из
+              <span id="total-steps">0</span>
+            </div>
+          </div>
+          <div class="grid-action-row">
+            <button class="control-btn secondary" onclick="resetGridExercise()">
+              🔄 Сначала
+            </button>
+            <button
+              id="next-level-btn"
+              class="control-btn primary hidden"
+              onclick="nextExercise()"
+            >
+              Дальше →
+            </button>
+          </div>
+        </div>
+        <div id="feedback" class="feedback hidden"></div>
+      </div>
+
+      <div id="results-screen" class="hidden">
+        <button class="back-btn" onclick="showMainMenu()">← Назад</button>
+        <h2>Мои результаты</h2>
+        <div class="stats-container">
+          <div class="stat-card">
+            <div class="stat-value" id="total-exercises">0</div>
+            <div class="stat-label">Выполнено упражнений</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="success-rate">0%</div>
+            <div class="stat-label">Успешность</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="avg-time">0</div>
+            <div class="stat-label">Среднее время (сек)</div>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+
+      <div id="info-screen" class="hidden">
+        <button class="back-btn" onclick="showMainMenu()">← Назад</button>
+        <h2>Информация для взрослых</h2>
+        <div class="info-content">
+          <section>
+            <h3>О системе</h3>
+            <p>
+              Данный веб-ресурс предназначен для формирования графо-моторных
+              навыков у детей старшего дошкольного и младшего школьного возраста
+              со стёртой формой дизартрии.
+            </p>
+          </section>
+          <section>
+            <h3>Рекомендации по использованию</h3>
+            <ul>
+              <li>Продолжительность одного занятия: 10-15 минут</li>
+              <li>Рекомендуемая частота: 3-4 раза в неделю</li>
+              <li>Упражнения выполняются пальцем или недорогим стилусом</li>
+              <li>Система дополняет традиционную работу на бумаге</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Модули системы</h3>
+            <p>
+              <strong>Модуль 1:</strong>
+              Развитие зрительно-пространственной организации
+            </p>
+            <p>
+              <strong>Модуль 2:</strong>
+              Зрительно-моторная координация и плавность движений
+            </p>
+            <p>
+              <strong>Модуль 3:</strong>
+              Формирование предпосылок письма
+            </p>
+            <p>
+              <strong>Модуль 4:</strong>
+              Динамический праксис и переключаемость
+            </p>
+            <p>
+              <strong>Модуль 5:</strong>
+              Зрительно-моторное соотнесение
+            </p>
+            <p>
+              <strong>Модуль 6:</strong>
+              Пространственная ориентировка и регуляция
+            </p>
+            <p>
+              <strong>Модуль 7:</strong>
+              Произвольная регуляция и самоконтроль
+            </p>
+            <p>
+              <strong>Модуль 8:</strong>
+              Закрепление навыков в игровой форме
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
