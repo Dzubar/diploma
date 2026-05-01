@@ -55,6 +55,8 @@ let userDrawnPoints = []; // Точки, нарисованные пользов
 let segmentStartPoints = []; // Отслеживание прохождения через начальную точку каждого сегмента
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 25; // Допуск для попадания в контрольную точку (пиксели)
+// Переменные для модуля "Найди и повтори" ($1 Recognizer)
+let userFilterPath = []; 
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -784,6 +786,14 @@ function displayExercise(exercise) {
     return;
   }
 
+
+	  
+  // ✅ ДОБАВЛЕН СБРОС СОСТОЯНИЯ РИСОВАНИЯ
+  isDrawing = false;
+  userFilterPath = [];
+
+	
+	
   console.log("Displaying exercise:", exercise.title, exercise.type);
 
   // ============================================
@@ -851,12 +861,13 @@ function displayExercise(exercise) {
     }));
   }
 
-  // Сброс для упражнения с распознаванием Найди и повтори
-  if (exercise.type === "gesture-shape") {
-    currentExercise.targetShape = generateGestureShape();
-    document.getElementById("instruction").textContent =
-      `Посмотри на ${SHAPE_EMOJI[currentExercise.targetShape]} и нарисуй такую же справа одним движением`;
-  }
+// Сброс для упражнения с распознаванием Найди и повтори
+if (exercise.type === "gesture-shape") {
+  currentExercise.targetShape = generateGestureShape();
+  userFilterPath = []; // <-- ДОБАВЛЕНА СТРОКА
+  document.getElementById("instruction").textContent =
+    `Посмотри на ${SHAPE_EMOJI[currentExercise.targetShape]} и нарисуй такую же справа одним движением`;
+}
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -1091,7 +1102,10 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-
+  // ✅ ДОБАВЛЕННЫЙ БЛОК ДЛЯ НАЙДИ И ПОВТОРИ
+  else if (currentExercise && currentExercise.type === "gesture-shape") {
+    startDrawingGesture(e);
+  } 
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1297,13 +1311,25 @@ function stopDrawing(e) {
     stopDrawingPatternDots(e);
     return;
   }
-  // Модуль 5: Найди и повтори
-  if (currentExercise && currentExercise.type === "gesture-shape") {
-    isDrawing = false;
-    ctx.closePath();
-    // Проверка завершается в drawGestureWithCheck при достаточной длине
-    return;
+	
+// Модуль 5: Найди и повтори
+if (currentExercise && currentExercise.type === "gesture-shape") {
+  isDrawing = false;
+  ctx.closePath();
+
+  // ✅ ПРОВЕРКА ТОЛЬКО ПОСЛЕ ОТПУСКАНИЯ ПАЛЬЦА/МЫШИ
+  if (userFilterPath.length >= 15) {
+    checkGestureCompletion();
+  } else {
+    showFeedback("⚠️ Фигура слишком короткая. Рисуйте одним движением!", "error");
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userFilterPath = [];
+    }, 1500);
   }
+  return;
+}
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
@@ -4736,6 +4762,16 @@ function showPatternFeedback(message) {
   }, 1500);
 }
 
+
+// Универсальная функция обратной связи (для модуля "Найди и повтори")
+function showFeedback(message, type = "success") {
+  const feedback = document.getElementById("feedback");
+  feedback.textContent = message;
+  feedback.className = `feedback ${type}`;
+  feedback.classList.remove("hidden");
+  setTimeout(() => feedback.classList.add("hidden"), 2000);
+}
+
 function completePatternDotsExercise() {
   exerciseCompleted = true;
   const feedback = document.getElementById("feedback");
@@ -5805,7 +5841,9 @@ function startDrawingGesture(e) {
 // Рисование с конвертацией в формат $1
 function drawGestureWithCheck(pos) {
   if (!isDrawing) return;
-
+  
+  // ✅ ЗАЩИТА: если массив пуст, выходим без ошибки
+  if (!userFilterPath || userFilterPath.length === 0) return;
   // Проверка зоны рисования
   if (pos.x < canvas.width / 2) {
     ctx.strokeStyle = "#ff5252";
@@ -5821,10 +5859,7 @@ function drawGestureWithCheck(pos) {
     ctx.stroke();
   }
 
-  // Проверяем завершение при достаточном количестве точек
-  if (userFilterPath.length >= 30) {
-    checkGestureCompletion();
-  }
+ 
 }
 
 // Проверка завершения упражнения
