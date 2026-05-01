@@ -84,7 +84,7 @@ const COLORS = [
 ];
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.8b исправление найди и повтори"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.9b исправление найди и повтори"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -2416,6 +2416,11 @@ function drawFinishMark() {
 }
 
 // Вибрация устройства
+function vibrateDevice() {
+  if ("vibrate" in navigator) {
+    navigator.vibrate(50); // 50ms вибрация
+  }
+}
 // Шаблоны упражнений
 function drawExerciseTemplate(exercise) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -5940,6 +5945,7 @@ function drawFilterWithCheck(pos) {
 
 // Проверка завершения упражнения
 function checkFilterCompletion() {
+
     // СНИЗИЛИ ПОРОГ до 30 точек, чтобы засчитывало маленькие фигуры
     if (userFilterPath.length < 30) return;
     
@@ -5957,6 +5963,14 @@ function checkFilterCompletion() {
         return;
     }
 
+
+console.log("🔍 Анализ:", { 
+    target: targetShape.type, 
+    detected: analysis.detectedType,
+    confidence: analysis.confidence,
+    pathLength: userFilterPath.length 
+});
+	
     // Анализируем нарисованную фигуру
     const analysis = analyzeDrawnShape(userFilterPath);
     
@@ -5996,43 +6010,175 @@ function checkFilterCompletion() {
     }
 }
 
-// Анализ нарисованной фигуры
+// ============================================
+// $1 Unistroke Recognizer (упрощённая версия)
+// ============================================
 function analyzeDrawnShape(path) {
-  if (path.length < 10) {
-    return { detectedType: "unknown", aspectRatio: 0, bbox: {} };
-  }
+    if (path.length < 10) {
+        return { detectedType: "unknown", confidence: 0, bbox: {} };
+    }
 
-  // Находим bounding box
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  for (let pos of path) {
-    minX = Math.min(minX, pos.x);
-    maxX = Math.max(maxX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxY = Math.max(maxY, pos.y);
-  }
+    // 1. Ресемплинг до 64 точек (стандарт $1)
+    const resampled = resamplePath(path, 64);
+    
+    // 2. Нормализация: центрирование и масштабирование
+    const normalized = normalizePath(resampled);
+    
+    // 3. Сравнение с эталонными шаблонами
+    const templates = {
+        line: generateTemplate("line"),
+        square: generateTemplate("square"), 
+        circle: generateTemplate("circle"),
+        triangle: generateTemplate("triangle")
+    };
+    
+    let bestMatch = "unknown";
+    let bestScore = Infinity;
+    
+    for (const [type, template] of Object.entries(templates)) {
+        const score = pathDistance(normalized, template);
+        if (score < bestScore) {
+            bestScore = score;
+            bestMatch = type;
+        }
+    }
+    
+    // Порог уверенности (чем меньше расстояние, тем лучше)
+    const confidence = bestScore < 2500 ? "high" : bestScore < 5000 ? "medium" : "low";
+    
+    return { detectedType: bestMatch, confidence, bbox: getBoundingBox(path) };
+}
 
-  const width = maxX - minX;
-  const height = maxY - minY;
-  const aspectRatio = width / height;
-  const bbox = { minX, maxX, minY, maxY, width, height };
+// Вспомогательные функции $1 Recognizer
+function resamplePath(points, n) {
+    if (points.length < 2) return points;
+    
+    // Вычисляем общую длину пути
+    let totalLength = 0;
+    for (let i = 1; i < points.length; i++) {
+        totalLength += Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
+    }
+    
+    const targetSpacing = totalLength / (n - 1);
+    const result = [ {...points[0]} ];
+    let D = 0;
+    
+    for (let i = 1; i < points.length; i++) {
+        const d = Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
+        if (D + d >= targetSpacing) {
+            const t = (targetSpacing - D) / d;
+            result.push({
+                x: points[i-1].x + t * (points[i].x - points[i-1].x),
+                y: points[i-1].y + t * (points[i].y - points[i-1].y)
+            });
+            points.splice(i, 0, {...points[i]}); // Вставляем новую точку
+            D = 0;
+        } else {
+            D += d;
+        }
+    }
+    
+    // Обрезаем или дополняем до ровно n точек
+    while (result.length < n) {
+        result.push({...result[result.length-1]});
+    }
+    return result.slice(0, n);
+}
 
-  // Определяем тип фигуры по соотношению сторон
-  let detectedType = "unknown";
+function normalizePath(points) {
+    // Центрирование
+    const centroid = { x: 0, y: 0 };
+    for (const p of points) {
+        centroid.x += p.x;
+        centroid.y += p.y;
+    }
+    centroid.x /= points.length;
+    centroid.y /= points.length;
+    
+    const centered = points.map(p => ({
+        x: p.x - centroid.x,
+        y: p.y - centroid.y
+    }));
+    
+    // Масштабирование к квадрату 250×250
+    let maxCoord = 0;
+    for (const p of centered) {
+        maxCoord = Math.max(maxCoord, Math.abs(p.x), Math.abs(p.y));
+    }
+    if (maxCoord === 0) maxCoord = 1;
+    
+    return centered.map(p => ({
+        x: (p.x / maxCoord) * 125,
+        y: (p.y / maxCoord) * 125
+    }));
+}
 
-  if (width < 30 || height < 30) {
-    detectedType = "too_small";
-  } else if (aspectRatio > 3 || aspectRatio < 0.33) {
-    detectedType = "line"; // Очень узкая и длинная
-  } else if (aspectRatio > 0.7 && aspectRatio < 1.3) {
-    detectedType = "square"; // Квадрат или круг
-  } else if (aspectRatio > 0.5 && aspectRatio < 2.0) {
-    detectedType = "triangle"; // Треугольник или прямоугольник
-  }
+function generateTemplate(type) {
+    // Простые эталонные шаблоны (64 точки)
+    const templates = {
+        line: () => {
+            const pts = [];
+            for (let i = 0; i < 64; i++) {
+                const t = i / 63;
+                pts.push({ x: -125 + t * 250, y: 0 });
+            }
+            return pts;
+        },
+        square: () => {
+            const pts = [], size = 100;
+            // 16 точек на сторону
+            for (let i = 0; i < 16; i++) pts.push({ x: -size + i*(2*size/15), y: -size });
+            for (let i = 0; i < 16; i++) pts.push({ x: size, y: -size + i*(2*size/15) });
+            for (let i = 0; i < 16; i++) pts.push({ x: size - i*(2*size/15), y: size });
+            for (let i = 0; i < 16; i++) pts.push({ x: -size, y: size - i*(2*size/15) });
+            return pts.slice(0, 64);
+        },
+        circle: () => {
+            const pts = [], r = 100;
+            for (let i = 0; i < 64; i++) {
+                const a = (i / 64) * Math.PI * 2;
+                pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+            }
+            return pts;
+        },
+        triangle: () => {
+            const pts = [], h = 100, w = 120;
+            // Вершина сверху, основание снизу
+            for (let i = 0; i < 22; i++) {
+                const t = i/21;
+                pts.push({ x: -w/2 + t*w, y: h - t*2*h });
+            }
+            for (let i = 0; i < 21; i++) {
+                const t = i/20;
+                pts.push({ x: w/2 - t*w, y: -h + t*2*h });
+            }
+            for (let i = 0; i < 21; i++) {
+                const t = i/20;
+                pts.push({ x: -w/2 + t*w, y: -h });
+            }
+            return pts.slice(0, 64);
+        }
+    };
+    return templates[type]();
+}
 
-  return { detectedType, aspectRatio, bbox };
+function pathDistance(p1, p2) {
+    let d = 0;
+    for (let i = 0; i < p1.length; i++) {
+        d += Math.hypot(p1[i].x - p2[i].x, p1[i].y - p2[i].y);
+    }
+    return d / p1.length;
+}
+
+function getBoundingBox(path) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of path) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+    }
+    return { minX, maxX, minY, maxY, width: maxX-minX, height: maxY-minY };
 }
 
 // Показ обратной связи
