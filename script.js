@@ -56,7 +56,7 @@ let segmentStartPoints = []; // Отслеживание прохождения 
 let segmentEndPoints = []; // Отслеживание прохождения через конечную точку каждого сегмента
 let pointTolerance = 25; // Допуск для попадания в контрольную точку (пиксели)
 // Переменные для модуля "Найди и повтори" ($1 Recognizer)
-let userFilterPath = []; 
+let userFilterPath = [];
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -70,7 +70,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.6b Добавляем найти и повторить"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.8b отладка найти и повторить"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -786,14 +786,10 @@ function displayExercise(exercise) {
     return;
   }
 
-
-	  
   // ✅ ДОБАВЛЕН СБРОС СОСТОЯНИЯ РИСОВАНИЯ
   isDrawing = false;
   userFilterPath = [];
 
-	
-	
   console.log("Displaying exercise:", exercise.title, exercise.type);
 
   // ============================================
@@ -861,13 +857,17 @@ function displayExercise(exercise) {
     }));
   }
 
-// Сброс для упражнения с распознаванием Найди и повтори
-if (exercise.type === "gesture-shape") {
-  currentExercise.targetShape = generateGestureShape();
-  userFilterPath = []; // <-- ДОБАВЛЕНА СТРОКА
-  document.getElementById("instruction").textContent =
-    `Посмотри на ${SHAPE_EMOJI[currentExercise.targetShape]} и нарисуй такую же справа одним движением`;
-}
+  // Сброс для упражнения с распознаванием Найди и повтори
+  // Сброс для упражнения с распознаванием Найди и повтори
+  if (exercise.type === "gesture-shape") {
+    currentExercise.shapes = generateGestureShapes(); // Массив из 3 разных фигур
+    const targetIdx = Math.floor(Math.random() * 3);
+    currentExercise.targetShape = currentExercise.shapes[targetIdx].type;
+
+    const shapeName = SHAPE_NAMES_RU[currentExercise.targetShape];
+    document.getElementById("instruction").textContent =
+      `Найди ${SHAPE_EMOJI[currentExercise.targetShape]} "${shapeName}" и нарисуй его справа одним движением`;
+  }
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -1105,7 +1105,7 @@ function handleCanvasClick(e) {
   // ✅ ДОБАВЛЕННЫЙ БЛОК ДЛЯ НАЙДИ И ПОВТОРИ
   else if (currentExercise && currentExercise.type === "gesture-shape") {
     startDrawingGesture(e);
-  } 
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1311,25 +1311,28 @@ function stopDrawing(e) {
     stopDrawingPatternDots(e);
     return;
   }
-	
-// Модуль 5: Найди и повтори
-if (currentExercise && currentExercise.type === "gesture-shape") {
-  isDrawing = false;
-  ctx.closePath();
 
-  // ✅ ПРОВЕРКА ТОЛЬКО ПОСЛЕ ОТПУСКАНИЯ ПАЛЬЦА/МЫШИ
-  if (userFilterPath.length >= 15) {
-    checkGestureCompletion();
-  } else {
-    showFeedback("⚠️ Фигура слишком короткая. Рисуйте одним движением!", "error");
-    setTimeout(() => {
-      clearCanvas();
-      drawExerciseTemplate(currentExercise);
-      userFilterPath = [];
-    }, 1500);
+  // Модуль 5: Найди и повтори
+  if (currentExercise && currentExercise.type === "gesture-shape") {
+    isDrawing = false;
+    ctx.closePath();
+
+    // ✅ ПРОВЕРКА ТОЛЬКО ПОСЛЕ ОТПУСКАНИЯ ПАЛЬЦА/МЫШИ
+    if (userFilterPath.length >= 15) {
+      checkGestureCompletion();
+    } else {
+      showFeedback(
+        "⚠️ Фигура слишком короткая. Рисуйте одним движением!",
+        "error"
+      );
+      setTimeout(() => {
+        clearCanvas();
+        drawExerciseTemplate(currentExercise);
+        userFilterPath = [];
+      }, 1500);
+    }
+    return;
   }
-  return;
-}
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
@@ -4762,7 +4765,6 @@ function showPatternFeedback(message) {
   }, 1500);
 }
 
-
 // Универсальная функция обратной связи (для модуля "Найди и повтори")
 function showFeedback(message, type = "success") {
   const feedback = document.getElementById("feedback");
@@ -5790,30 +5792,83 @@ function generateGestureShape() {
   return shapes[Math.floor(Math.random() * shapes.length)];
 }
 
-// Отрисовка целевой фигуры (в левой части)
-function drawGestureTarget(shape) {
+// Генерация трёх перекрывающихся фигур
+function generateGestureShapes() {
+  // Пул цветов
+  const colors = [
+    "#FF5252",
+    "#4FC3F7",
+    "#69F0AE",
+    "#FFD740",
+    "#BA68C8",
+    "#FF8A65"
+  ];
+  // ✅ Перемешиваем массив цветов (Fisher-Yates shuffle)
+  for (let i = colors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+
+  const shapes = [];
   const halfW = canvas.width / 2;
   const halfH = canvas.height;
-  const cx = halfW / 2;
-  const cy = halfH / 2;
-  const size = Math.min(halfW, halfH) * 0.25;
 
-  ctx.strokeStyle = "#ffcc00";
-  ctx.lineWidth = 4;
+  // Перемешиваем типы фигур, чтобы гарантировать уникальность (круг, квадрат, треугольник)
+  const types = [...SHAPE_TYPES_GESTURE];
+  for (let i = types.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [types[i], types[j]] = [types[j], types[i]];
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const type = types[i];
+    const color = colors[i]; // ✅ Берём уникальный цвет из перемешанного массива
+
+    // Размер: 20-30% от ширины левой части
+    const size = halfW * (0.2 + Math.random() * 0.1);
+
+    // Строгие границы, чтобы фигуры не вылезали в правую часть
+    const margin = halfW * 0.05;
+    const minCx = size + margin;
+    const maxCx = halfW - size - margin;
+    const cx = minCx + Math.random() * (maxCx - minCx);
+
+    const minCy = size + margin;
+    const maxCy = halfH - size - margin;
+    const cy = minCy + Math.random() * (maxCy - minCy);
+
+    shapes.push({ type, color, size, cx, cy });
+  }
+  return shapes;
+}
+
+// Рисование одной фигуры (для шаблона с тремя фигурами)
+function drawSingleShape(shape) {
+  ctx.save();
+  ctx.strokeStyle = shape.color;
+  ctx.lineWidth = 5;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
   ctx.beginPath();
-
-  if (shape === "circle") {
-    ctx.arc(cx, cy, size, 0, Math.PI * 2);
-  } else if (shape === "square") {
-    ctx.rect(cx - size, cy - size, size * 2, size * 2);
-  } else if (shape === "triangle") {
-    const h = (size * Math.sqrt(3)) / 2;
-    ctx.moveTo(cx, cy - h * 0.66);
-    ctx.lineTo(cx + size, cy + h * 0.33);
-    ctx.lineTo(cx - size, cy + h * 0.33);
+  if (shape.type === "circle") {
+    ctx.arc(shape.cx, shape.cy, shape.size, 0, Math.PI * 2);
+  } else if (shape.type === "square") {
+    ctx.rect(
+      shape.cx - shape.size,
+      shape.cy - shape.size,
+      shape.size * 2,
+      shape.size * 2
+    );
+  } else if (shape.type === "triangle") {
+    const h = (shape.size * Math.sqrt(3)) / 2;
+    ctx.moveTo(shape.cx, shape.cy - h * 0.66);
+    ctx.lineTo(shape.cx + shape.size, shape.cy + h * 0.33);
+    ctx.lineTo(shape.cx - shape.size, shape.cy + h * 0.33);
     ctx.closePath();
   }
-  ctx.stroke();
+  ctx.stroke(); // ✅ Только обводка, без fill()
+  ctx.restore();
 }
 
 // Начало рисования для распознавания
@@ -5841,7 +5896,7 @@ function startDrawingGesture(e) {
 // Рисование с конвертацией в формат $1
 function drawGestureWithCheck(pos) {
   if (!isDrawing) return;
-  
+
   // ✅ ЗАЩИТА: если массив пуст, выходим без ошибки
   if (!userFilterPath || userFilterPath.length === 0) return;
   // Проверка зоны рисования
@@ -5858,8 +5913,6 @@ function drawGestureWithCheck(pos) {
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
   }
-
- 
 }
 
 // Проверка завершения упражнения
@@ -5907,9 +5960,8 @@ function checkGestureCompletion() {
 // Шаблон упражнения
 function drawGestureShapeTemplate() {
   const halfW = canvas.width / 2;
-
-  // Фон: слева серый (образец), справа белый (поле для рисования)
-  ctx.fillStyle = "#f5f5f5";
+  // Фон: слева светло-серый (образец), справа белый (поле для рисования)
+  ctx.fillStyle = "#f0f0f5";
   ctx.fillRect(0, 0, halfW, canvas.height);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(halfW, 0, halfW, canvas.height);
@@ -5922,16 +5974,18 @@ function drawGestureShapeTemplate() {
   ctx.lineTo(halfW, canvas.height);
   ctx.stroke();
 
-  // Рисуем целевую фигуру слева
-  if (currentExercise && currentExercise.targetShape) {
-    drawGestureTarget(currentExercise.targetShape);
+  // Рисуем ТРИ фигуры-отвлекающие слева
+  if (currentExercise && currentExercise.shapes) {
+    for (const shape of currentExercise.shapes) {
+      drawSingleShape(shape);
+    }
   }
 
-  // Подсказка
-  ctx.fillStyle = "#666";
-  ctx.font = "14px Arial";
+  // Подсказка справа
+  ctx.fillStyle = "#999";
+  ctx.font = "24px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Нарисуй здесь →", halfW + canvas.width / 4, canvas.height - 20);
+  ctx.fillText("Нарисуй здесь", halfW + canvas.width / 4, canvas.height - 20);
 }
 
 // ============================================
