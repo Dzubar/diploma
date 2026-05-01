@@ -73,18 +73,18 @@ let targetShape = null; // Целевая фигура для повторени
 let userFilterPath = []; // Путь пользователя
 let isDrawingFilter = false; // Флаг рисования
 
-// === ВОССТАНОВЛЕНО: Константы фигур и цветов ===
+// === Константы фигур и цветов для упражнения "Найди и повтори" ===
 const SHAPE_TYPES = ["line", "square", "circle", "triangle"];
+
 const COLORS = [
-    { name: "красный", hex: "#ff5252" },
-    { name: "жёлтый", hex: "#FFEB3B" },
-    { name: "зелёный", hex: "#4caf50" },
-    { name: "синий", hex: "#2196f3" }
+  { name: "красный", hex: "#ff5252" },
+  { name: "жёлтый", hex: "#FFEB3B" },
+  { name: "зелёный", hex: "#4caf50" },
+  { name: "синий", hex: "#2196f3" }
 ];
-// ================================================
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.7b исправление найди и повтори"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.8b исправление найди и повтори"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -5901,6 +5901,9 @@ function startDrawingVisualFilter(e) {
   e.preventDefault();
   if (exerciseCompleted || !targetShape) return;
 
+	    // !!! ДОБАВЛЕНО: Очистка предыдущего рисунка
+    drawExerciseTemplate(currentExercise); 
+
   const pos = getPosition(e);
 
   // Разрешаем рисовать только на правом поле
@@ -5942,52 +5945,60 @@ function drawFilterWithCheck(pos) {
 
 // Проверка завершения упражнения
 function checkFilterCompletion() {
-  if (userFilterPath.length < 50) return;
+    // СНИЗИЛИ ПОРОГ до 30 точек, чтобы засчитывало маленькие фигуры
+    if (userFilterPath.length < 30) return;
+    
+    // Проверяем, что большинство точек на правом поле
+    let rightSidePoints = 0;
+    for (let pos of userFilterPath) {
+        if (pos.x > canvas.width / 2) rightSidePoints++;
+    }
+    if (rightSidePoints < userFilterPath.length * 0.7) {
+        showFeedback("⚠️ Рисуй на правом поле!", "error");
+        setTimeout(() => {
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1500);
+        return;
+    }
 
-  // Проверяем, что большинство точек на правом поле
-  let rightSidePoints = 0;
-  for (let pos of userFilterPath) {
-    if (pos.x > canvas.width / 2) rightSidePoints++;
-  }
+    // Анализируем нарисованную фигуру
+    const analysis = analyzeDrawnShape(userFilterPath);
+    
+    // Проверяем соответствие типу фигуры
+    let isMatch = analysis.detectedType === targetShape.type;
+    
+    // ЛОГИКА ДЛЯ ДЕТСКОГО РИСОВАНИЯ:
+    // Дети часто рисуют круги немного угловатыми (как квадраты), 
+    // поэтому если задача "Круг", а определилось как "Квадрат" — засчитываем.
+    if (targetShape.type === 'circle' && analysis.detectedType === 'square') {
+        isMatch = true;
+    }
 
-  if (rightSidePoints < userFilterPath.length * 0.7) {
-    showFeedback("⚠️ Рисуй на правом поле!", "error");
-    setTimeout(() => {
-      clearCanvas();
-      drawExerciseTemplate(currentExercise);
-      userFilterPath = [];
-    }, 1500);
-    return;
-  }
-
-  // Анализируем нарисованную фигуру
-  const analysis = analyzeDrawnShape(userFilterPath);
-
-  // Проверяем соответствие типу фигуры
-  if (analysis.detectedType === targetShape.type) {
-    exerciseCompleted = true;
-    isDrawing = false;
-    showFeedback("✓ Отлично! Фигура повторена!", "success");
-
-    // Сохраняем статистику
-    stats.successfulExercises++;
-    stats.totalTime += Date.now() - startTime;
-    saveStats();
-
-    setTimeout(() => {
-      nextExercise();
-    }, 1500);
-  } else {
-    showFeedback(
-      `⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`,
-      "error"
-    );
-    setTimeout(() => {
-      clearCanvas();
-      drawExerciseTemplate(currentExercise);
-      userFilterPath = [];
-    }, 1500);
-  }
+    if (isMatch) {
+        // УСПЕХ
+        exerciseCompleted = true;
+        isDrawing = false;
+        showFeedback("✓ Отлично! Фигура повторена!", "success");
+        stats.successfulExercises++;
+        stats.totalTime += Date.now() - startTime;
+        saveStats();
+        setTimeout(() => {
+            nextExercise();
+        }, 1500);
+    } else {
+        // ОШИБКА
+        // Если фигура слишком маленькая — даем подсказку
+        let errorMsg = `⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`;
+        if (analysis.detectedType === "too_small") {
+            errorMsg = "⚠️ Слишком мелко! Рисуй крупнее";
+        }
+        showFeedback(errorMsg, "error");
+        setTimeout(() => {
+            drawExerciseTemplate(currentExercise);
+            userFilterPath = [];
+        }, 1500);
+    }
 }
 
 // Анализ нарисованной фигуры
