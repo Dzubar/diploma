@@ -67,24 +67,8 @@ let dotRadius = 8; // Радиус точки в пикселях
 let dotTolerance = 15; // Допуск для попадания в точку (пиксели)
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
-// Переменные для "Найди и повтори"
-let filterShapes = []; // Массив фигур на левом поле
-let targetShape = null; // Целевая фигура для повторения
-let userFilterPath = []; // Путь пользователя
-let isDrawingFilter = false; // Флаг рисования
-
-// === Константы фигур и цветов для упражнения "Найди и повтори" ===
-const SHAPE_TYPES = ["line", "square", "circle", "triangle"];
-
-const COLORS = [
-  { name: "красный", hex: "#ff5252" },
-  { name: "жёлтый", hex: "#FFEB3B" },
-  { name: "зелёный", hex: "#4caf50" },
-  { name: "синий", hex: "#2196f3" }
-];
-
 // Версия файла для отладки
-const FILE_VERSION = "1.2.9b исправление найди и повтори"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.6b Добавляем найти и повторить"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -407,11 +391,13 @@ function getModuleExercises(moduleNum) {
       }
     ],
     5: [
+      // В массив модуля 5 добавьте:
       {
-        title: "Найди и повтори",
-        type: "visual-filter",
+        title: "Нарисуй фигуру",
+        type: "gesture-shape",
         instruction:
-          "Найди на левом поле и нарисуй в правильном месте на правом поле [ЦВЕТ] [ФИГУРА]"
+          "Посмотри на фигуру слева и нарисуй такую же справа одним движением",
+        targetShape: "circle" // будет заменено при генерации
       },
       {
         title: "Рисуем Ромб",
@@ -865,11 +851,12 @@ function displayExercise(exercise) {
     }));
   }
 
-  // Сброс переменных для "Найди и повтори"
-  filterShapes = [];
-  targetShape = null;
-  userFilterPath = [];
-  isDrawingFilter = false;
+  // Сброс для упражнения с распознаванием Найди и повтори
+  if (exercise.type === "gesture-shape") {
+    currentExercise.targetShape = generateGestureShape();
+    document.getElementById("instruction").textContent =
+      `Посмотри на ${SHAPE_EMOJI[currentExercise.targetShape]} и нарисуй такую же справа одним движением`;
+  }
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -911,11 +898,6 @@ function displayExercise(exercise) {
     // Другие модули: показываем обычные кнопки, скрываем стрелки
     regularControls.classList.remove("hidden");
     gridControls.classList.add("hidden");
-  }
-
-  // Генерируем фигуры для "Найди и повтори"
-  if (currentExercise && currentExercise.type === "visual-filter") {
-    generateFilterShapes();
   }
 
   if (canvas && ctx) {
@@ -1068,8 +1050,8 @@ function handleCanvasTouch(e) {
     startDrawingMirrorTree(e);
   }
   // Модуль 5: Найди и повтори
-  else if (currentExercise && currentExercise.type === "visual-filter") {
-    startDrawingVisualFilter(e);
+  else if (currentExercise && currentExercise.type === "gesture-shape") {
+    startDrawingGesture(e);
   }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1109,10 +1091,7 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "mirror-tree") {
     startDrawingMirrorTree(e);
   }
-  // Модуль 5: Найди и повтори
-  else if (currentExercise && currentExercise.type === "visual-filter") {
-    startDrawingVisualFilter(e);
-  }
+
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1273,7 +1252,11 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
-
+  // Модуль: Распознавание фигур
+  if (currentExercise && currentExercise.type === "gesture-shape") {
+    drawGestureWithCheck(pos);
+    return;
+  }
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     drawForbiddenColorWithCheck(pos);
@@ -1315,9 +1298,10 @@ function stopDrawing(e) {
     return;
   }
   // Модуль 5: Найди и повтори
-  if (currentExercise && currentExercise.type === "visual-filter") {
+  if (currentExercise && currentExercise.type === "gesture-shape") {
     isDrawing = false;
     ctx.closePath();
+    // Проверка завершается в drawGestureWithCheck при достаточной длине
     return;
   }
   // Модуль 7: Запретный цвет
@@ -2476,7 +2460,10 @@ function drawExerciseTemplate(exercise) {
     case "path-loops":
       drawPathLoops();
       break;
-
+    // найди и повтори
+    case "gesture-shape":
+      drawGestureShapeTemplate();
+      break;
     // Модуль 4: Серийность движений
     case "rhythmic-fence":
       drawRhythmicFence();
@@ -2500,10 +2487,6 @@ function drawExerciseTemplate(exercise) {
       break;
     case "pattern-dots":
       drawPatternDots();
-      break;
-    // Модуль 5: Найди и повтори
-    case "visual-filter":
-      drawVisualFilterTemplate();
       break;
 
     // Модуль 6: Графические диктанты
@@ -5760,437 +5743,575 @@ function resetGridExercise() {
   // Обновляем счетчик
   document.getElementById("current-step").textContent = "0";
 }
-
+//=========================== НАЙДИ И ПОВТОРИ=====================
 // ============================================
-// УПРАЖНЕНИЕ "Найди и повтори" (Модуль 5)
+// УПРАЖНЕНИЕ: Распознавание фигур ($1 Recognizer)
 // ============================================
 
-// Генерация случайных фигур
-function generateFilterShapes() {
-  filterShapes = [];
-  const leftWidth = canvas.width / 2;
-  const leftHeight = canvas.height;
-
-  // Выбираем 3 уникальные фигуры и 3 уникальных цвета
-  const selectedShapes = shuffleArray([...SHAPE_TYPES]).slice(0, 3);
-  const selectedColors = shuffleArray([...COLORS]).slice(0, 3);
-
-  // Создаём фигуры со случайными параметрами
-  selectedShapes.forEach((shape, i) => {
-    const size = 50 + Math.random() * 40; // Случайный размер 50-90px
-    filterShapes.push({
-      type: shape,
-      color: selectedColors[i].hex,
-      colorName: selectedColors[i].name,
-      x: 80 + Math.random() * (leftWidth - 160), // Случайная позиция с отступами
-      y: 80 + Math.random() * (leftHeight - 160),
-      size: size
-    });
-  });
-
-  // Выбираем случайную целевую фигуру
-  targetShape = filterShapes[Math.floor(Math.random() * filterShapes.length)];
-
-  // Обновляем инструкцию с конкретным цветом и фигурой
-  document.getElementById("instruction").textContent =
-    `Найди на левом поле и нарисуй на правом поле ${targetShape.colorName} ${getShapeName(targetShape.type)}`;
+// Генерация целевой фигуры
+function generateGestureShape() {
+  const shapes = ["circle", "square", "triangle"];
+  return shapes[Math.floor(Math.random() * shapes.length)];
 }
 
-// Вспомогательная функция для названий фигур
-function getShapeName(type) {
-  const names = {
-    line: "линию",
-    square: "квадрат",
-    circle: "круг",
-    triangle: "треугольник"
-  };
-  return names[type] || type;
-}
-
-// Перемешивание массива (алгоритм Фишера-Йетса)
-function shuffleArray(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-// Отрисовка шаблона упражнения
-function drawVisualFilterTemplate() {
+// Отрисовка целевой фигуры (в левой части)
+function drawGestureTarget(shape) {
   const halfW = canvas.width / 2;
   const halfH = canvas.height;
+  const cx = halfW / 2;
+  const cy = halfH / 2;
+  const size = Math.min(halfW, halfH) * 0.25;
 
-  // Фон: слева серый, справа белый
-  ctx.fillStyle = "#f5f5f5";
-  ctx.fillRect(0, 0, halfW, halfH);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(halfW, 0, halfW, halfH);
-
-  // Разделительная линия
-  ctx.strokeStyle = "#4caf50";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#ffcc00";
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(halfW, 0);
-  ctx.lineTo(halfW, halfH);
-  ctx.stroke();
 
-  // Рисуем фигуры на левом поле
-  drawFilterShapes();
-
-  // Если упражнение завершено - рисуем результат пользователя справа
-  if (exerciseCompleted && userFilterPath.length > 0) {
-    ctx.strokeStyle = targetShape.color;
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    if (userFilterPath.length > 0) {
-      ctx.moveTo(userFilterPath[0].x, userFilterPath[0].y);
-      for (let i = 1; i < userFilterPath.length; i++) {
-        ctx.lineTo(userFilterPath[i].x, userFilterPath[i].y);
-      }
-    }
-    ctx.stroke();
+  if (shape === "circle") {
+    ctx.arc(cx, cy, size, 0, Math.PI * 2);
+  } else if (shape === "square") {
+    ctx.rect(cx - size, cy - size, size * 2, size * 2);
+  } else if (shape === "triangle") {
+    const h = (size * Math.sqrt(3)) / 2;
+    ctx.moveTo(cx, cy - h * 0.66);
+    ctx.lineTo(cx + size, cy + h * 0.33);
+    ctx.lineTo(cx - size, cy + h * 0.33);
+    ctx.closePath();
   }
+  ctx.stroke();
 }
 
-// Отрисовка фигур на левом поле
-function drawFilterShapes() {
-  const leftWidth = canvas.width / 2;
-  ctx.clearRect(0, 0, leftWidth, canvas.height);
-
-  filterShapes.forEach((shape) => {
-    ctx.strokeStyle = shape.color;
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-
-    switch (shape.type) {
-      case "line":
-        ctx.moveTo(shape.x - shape.size / 2, shape.y);
-        ctx.lineTo(shape.x + shape.size / 2, shape.y);
-        break;
-      case "square":
-        ctx.rect(
-          shape.x - shape.size / 2,
-          shape.y - shape.size / 2,
-          shape.size,
-          shape.size
-        );
-        break;
-      case "circle":
-        ctx.arc(shape.x, shape.y, shape.size / 2, 0, Math.PI * 2);
-        break;
-      case "triangle":
-        const r = shape.size / 2;
-        ctx.moveTo(shape.x, shape.y - r);
-        ctx.lineTo(shape.x - r, shape.y + r);
-        ctx.lineTo(shape.x + r, shape.y + r);
-        ctx.closePath();
-        break;
-    }
-    ctx.stroke();
-  });
-}
-
-// Начало рисования на правом поле
-function startDrawingVisualFilter(e) {
+// Начало рисования для распознавания
+function startDrawingGesture(e) {
   e.preventDefault();
-  if (exerciseCompleted || !targetShape) return;
-
-	    // !!! ДОБАВЛЕНО: Очистка предыдущего рисунка
-    drawExerciseTemplate(currentExercise); 
+  if (exerciseCompleted) return;
 
   const pos = getPosition(e);
-
-  // Разрешаем рисовать только на правом поле
+  // Разрешаем рисовать только на правой половине
   if (pos.x < canvas.width / 2) {
     showFeedback("⚠️ Рисуй на правом поле!", "error");
     return;
   }
 
   isDrawing = true;
-  userFilterPath = [pos];
+  userFilterPath = [{ X: pos.x, Y: pos.y }]; // Используем формат $1 Recognizer
   ctx.beginPath();
   ctx.moveTo(pos.x, pos.y);
-  ctx.strokeStyle = targetShape.color;
+  ctx.strokeStyle = "#4fc3f7";
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 }
 
-// Рисование с проверкой
-function drawFilterWithCheck(pos) {
+// Рисование с конвертацией в формат $1
+function drawGestureWithCheck(pos) {
   if (!isDrawing) return;
 
-  // Проверяем, что рисуем на правом поле
+  // Проверка зоны рисования
   if (pos.x < canvas.width / 2) {
-    ctx.strokeStyle = "#ff5252"; // Красный, если слева
+    ctx.strokeStyle = "#ff5252";
   } else {
-    ctx.strokeStyle = targetShape.color; // Правильный цвет справа
+    ctx.strokeStyle = "#4fc3f7";
   }
 
-  userFilterPath.push(pos);
-  ctx.lineTo(pos.x, pos.y);
-  ctx.stroke();
+  // Добавляем точку только если расстояние достаточно (фильтр шума)
+  const lastPoint = userFilterPath[userFilterPath.length - 1];
+  if (Distance(lastPoint, { X: pos.x, Y: pos.y }) > 3) {
+    userFilterPath.push({ X: pos.x, Y: pos.y });
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
 
-  // Проверяем завершение при достаточной длине пути
-  if (userFilterPath.length >= 50) {
-    checkFilterCompletion();
+  // Проверяем завершение при достаточном количестве точек
+  if (userFilterPath.length >= 30) {
+    checkGestureCompletion();
   }
 }
 
 // Проверка завершения упражнения
-function checkFilterCompletion() {
+function checkGestureCompletion() {
+  if (userFilterPath.length < 10) return;
 
-    // СНИЗИЛИ ПОРОГ до 30 точек, чтобы засчитывало маленькие фигуры
-    if (userFilterPath.length < 30) return;
-    
-    // Проверяем, что большинство точек на правом поле
-    let rightSidePoints = 0;
-    for (let pos of userFilterPath) {
-        if (pos.x > canvas.width / 2) rightSidePoints++;
-    }
-    if (rightSidePoints < userFilterPath.length * 0.7) {
-        showFeedback("⚠️ Рисуй на правом поле!", "error");
-        setTimeout(() => {
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
-        return;
-    }
+  // Распознаем фигуру
+  const result = shapeRecognizer.recognize(userFilterPath);
+  const targetShape = currentExercise.targetShape;
+  const isCorrect = result.Name === targetShape && result.Score > 0.7;
 
+  if (isCorrect) {
+    // ✅ УСПЕХ
+    exerciseCompleted = true;
+    isDrawing = false;
 
-console.log("🔍 Анализ:", { 
-    target: targetShape.type, 
-    detected: analysis.detectedType,
-    confidence: analysis.confidence,
-    pathLength: userFilterPath.length 
-});
-	
-    // Анализируем нарисованную фигуру
-    const analysis = analyzeDrawnShape(userFilterPath);
-    
-    // Проверяем соответствие типу фигуры
-    let isMatch = analysis.detectedType === targetShape.type;
-    
-    // ЛОГИКА ДЛЯ ДЕТСКОГО РИСОВАНИЯ:
-    // Дети часто рисуют круги немного угловатыми (как квадраты), 
-    // поэтому если задача "Круг", а определилось как "Квадрат" — засчитываем.
-    if (targetShape.type === 'circle' && analysis.detectedType === 'square') {
-        isMatch = true;
-    }
+    showFeedback(`✓ Отлично! Это ${SHAPE_NAMES_RU[targetShape]}!`, "success");
 
-    if (isMatch) {
-        // УСПЕХ
-        exerciseCompleted = true;
-        isDrawing = false;
-        showFeedback("✓ Отлично! Фигура повторена!", "success");
-        stats.successfulExercises++;
-        stats.totalTime += Date.now() - startTime;
-        saveStats();
-        setTimeout(() => {
-            nextExercise();
-        }, 1500);
+    // Обновляем статистику
+    stats.successfulExercises++;
+    stats.totalTime += Date.now() - startTime;
+    saveStats();
+
+    // Автоматический переход к следующему упражнению
+    setTimeout(() => {
+      nextExercise();
+    }, 2000);
+  } else {
+    // ❌ ОШИБКА
+    showFeedback(
+      `⚠️ Это не ${SHAPE_NAMES_RU[targetShape]}! Попробуй снова`,
+      "error"
+    );
+
+    // Сброс через 1.5 секунды
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userFilterPath = [];
+      isDrawing = false;
+    }, 1500);
+  }
+}
+
+// Шаблон упражнения
+function drawGestureShapeTemplate() {
+  const halfW = canvas.width / 2;
+
+  // Фон: слева серый (образец), справа белый (поле для рисования)
+  ctx.fillStyle = "#f5f5f5";
+  ctx.fillRect(0, 0, halfW, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(halfW, 0, halfW, canvas.height);
+
+  // Разделительная линия
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(halfW, 0);
+  ctx.lineTo(halfW, canvas.height);
+  ctx.stroke();
+
+  // Рисуем целевую фигуру слева
+  if (currentExercise && currentExercise.targetShape) {
+    drawGestureTarget(currentExercise.targetShape);
+  }
+
+  // Подсказка
+  ctx.fillStyle = "#666";
+  ctx.font = "14px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Нарисуй здесь →", halfW + canvas.width / 4, canvas.height - 20);
+}
+
+// ============================================
+// $1 UNISTROKE RECOGNIZER (для распознавания фигур)
+// ============================================
+function Point(x, y) {
+  this.X = x;
+  this.Y = y;
+}
+function Rectangle(x, y, w, h) {
+  this.X = x;
+  this.Y = y;
+  this.Width = w;
+  this.Height = h;
+}
+function GestureResult(name, score, time) {
+  this.Name = name;
+  this.Score = score;
+  this.Time = time;
+}
+
+const NumPoints = 64,
+  SquareSize = 250.0,
+  Origin = new Point(0, 0);
+const Diagonal = Math.sqrt(SquareSize * SquareSize + SquareSize * SquareSize);
+const HalfDiagonal = 0.5 * Diagonal;
+const AngleRange = Deg2Rad(45.0),
+  AnglePrecision = Deg2Rad(2.0);
+const Phi = 0.5 * (-1.0 + Math.sqrt(5.0));
+
+function Resample(points, n) {
+  const I = PathLength(points) / (n - 1);
+  let D = 0.0;
+  const newpoints = [new Point(points[0].X, points[0].Y)];
+  const pts = points.map((p) => new Point(p.X, p.Y));
+  for (let i = 1; i < pts.length; i++) {
+    const d = Distance(pts[i - 1], pts[i]);
+    if (D + d >= I) {
+      const qx = pts[i - 1].X + ((I - D) / d) * (pts[i].X - pts[i - 1].X);
+      const qy = pts[i - 1].Y + ((I - D) / d) * (pts[i].Y - pts[i - 1].Y);
+      newpoints.push(new Point(qx, qy));
+      pts.splice(i, 0, new Point(qx, qy));
+      D = 0.0;
+    } else D += d;
+  }
+  if (newpoints.length === n - 1)
+    newpoints.push(new Point(pts[pts.length - 1].X, pts[pts.length - 1].Y));
+  return newpoints;
+}
+function IndicativeAngle(points) {
+  const c = Centroid(points);
+  return Math.atan2(c.Y - points[0].Y, c.X - points[0].X);
+}
+function RotateBy(points, radians) {
+  const c = Centroid(points),
+    cos = Math.cos(radians),
+    sin = Math.sin(radians),
+    newpoints = [];
+  for (const p of points) {
+    const qx = (p.X - c.X) * cos - (p.Y - c.Y) * sin + c.X;
+    const qy = (p.X - c.X) * sin + (p.Y - c.Y) * cos + c.Y;
+    newpoints.push(new Point(qx, qy));
+  }
+  return newpoints;
+}
+function ScaleTo(points, size) {
+  const B = BoundingBox(points),
+    newpoints = [];
+  for (const p of points)
+    newpoints.push(new Point(p.X * (size / B.Width), p.Y * (size / B.Height)));
+  return newpoints;
+}
+function TranslateTo(points, pt) {
+  const c = Centroid(points),
+    newpoints = [];
+  for (const p of points)
+    newpoints.push(new Point(p.X + pt.X - c.X, p.Y + pt.Y - c.Y));
+  return newpoints;
+}
+function Centroid(points) {
+  let x = 0,
+    y = 0;
+  for (const p of points) {
+    x += p.X;
+    y += p.Y;
+  }
+  return new Point(x / points.length, y / points.length);
+}
+function BoundingBox(points) {
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  for (const p of points) {
+    minX = Math.min(minX, p.X);
+    maxX = Math.max(maxX, p.X);
+    minY = Math.min(minY, p.Y);
+    maxY = Math.max(maxY, p.Y);
+  }
+  return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+}
+function PathDistance(pts1, pts2) {
+  let d = 0;
+  for (let i = 0; i < pts1.length; i++) d += Distance(pts1[i], pts2[i]);
+  return d / pts1.length;
+}
+function PathLength(points) {
+  let d = 0;
+  for (let i = 1; i < points.length; i++)
+    d += Distance(points[i - 1], points[i]);
+  return d;
+}
+function Distance(p1, p2) {
+  const dx = p2.X - p1.X,
+    dy = p2.Y - p1.Y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function Deg2Rad(d) {
+  return (d * Math.PI) / 180.0;
+}
+function DistanceAtBestAngle(points, template, a, b, threshold) {
+  let x1 = Phi * a + (1 - Phi) * b,
+    f1 = DistanceAtAngle(points, template, x1);
+  let x2 = (1 - Phi) * a + Phi * b,
+    f2 = DistanceAtAngle(points, template, x2);
+  while (Math.abs(b - a) > threshold) {
+    if (f1 < f2) {
+      b = x2;
+      x2 = x1;
+      f2 = f1;
+      x1 = Phi * a + (1 - Phi) * b;
+      f1 = DistanceAtAngle(points, template, x1);
     } else {
-        // ОШИБКА
-        // Если фигура слишком маленькая — даем подсказку
-        let errorMsg = `⚠️ Это не ${getShapeName(targetShape.type)}! Попробуй снова`;
-        if (analysis.detectedType === "too_small") {
-            errorMsg = "⚠️ Слишком мелко! Рисуй крупнее";
-        }
-        showFeedback(errorMsg, "error");
-        setTimeout(() => {
-            drawExerciseTemplate(currentExercise);
-            userFilterPath = [];
-        }, 1500);
+      a = x1;
+      x1 = x2;
+      f1 = f2;
+      x2 = (1 - Phi) * a + Phi * b;
+      f2 = DistanceAtAngle(points, template, x2);
     }
+  }
+  return Math.min(f1, f2);
+}
+function DistanceAtAngle(points, template, radians) {
+  return PathDistance(RotateBy(points, radians), template.Points);
 }
 
-// ============================================
-// $1 Unistroke Recognizer (упрощённая версия)
-// ============================================
-function analyzeDrawnShape(path) {
-    if (path.length < 10) {
-        return { detectedType: "unknown", confidence: 0, bbox: {} };
-    }
-
-    // 1. Ресемплинг до 64 точек (стандарт $1)
-    const resampled = resamplePath(path, 64);
-    
-    // 2. Нормализация: центрирование и масштабирование
-    const normalized = normalizePath(resampled);
-    
-    // 3. Сравнение с эталонными шаблонами
-    const templates = {
-        line: generateTemplate("line"),
-        square: generateTemplate("square"), 
-        circle: generateTemplate("circle"),
-        triangle: generateTemplate("triangle")
-    };
-    
-    let bestMatch = "unknown";
-    let bestScore = Infinity;
-    
-    for (const [type, template] of Object.entries(templates)) {
-        const score = pathDistance(normalized, template);
-        if (score < bestScore) {
-            bestScore = score;
-            bestMatch = type;
-        }
-    }
-    
-    // Порог уверенности (чем меньше расстояние, тем лучше)
-    const confidence = bestScore < 2500 ? "high" : bestScore < 5000 ? "medium" : "low";
-    
-    return { detectedType: bestMatch, confidence, bbox: getBoundingBox(path) };
+function Unistroke(name, points) {
+  this.Name = name;
+  this.Points = Resample(points, NumPoints);
+  const radians = IndicativeAngle(this.Points);
+  this.Points = RotateBy(this.Points, -radians);
+  this.Points = ScaleTo(this.Points, SquareSize);
+  this.Points = TranslateTo(this.Points, Origin);
 }
 
-// Вспомогательные функции $1 Recognizer
-function resamplePath(points, n) {
-    if (points.length < 2) return points;
-    
-    // Вычисляем общую длину пути
-    let totalLength = 0;
-    for (let i = 1; i < points.length; i++) {
-        totalLength += Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
+function DollarRecognizer() {
+  this.templates = [];
+  const self = this;
+  this.addTemplate = function (name, points) {
+    self.templates.push(new Unistroke(name, points));
+  };
+  this.recognize = function (points) {
+    if (points.length < 10) return new GestureResult("Too few points", 0, 0);
+    const candidate = new Unistroke("", points);
+    let bestIdx = -1,
+      bestDist = Infinity;
+    for (let i = 0; i < self.templates.length; i++) {
+      const d = DistanceAtBestAngle(
+        candidate.Points,
+        self.templates[i],
+        -AngleRange,
+        +AngleRange,
+        AnglePrecision
+      );
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
     }
-    
-    const targetSpacing = totalLength / (n - 1);
-    const result = [ {...points[0]} ];
-    let D = 0;
-    
-    for (let i = 1; i < points.length; i++) {
-        const d = Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
-        if (D + d >= targetSpacing) {
-            const t = (targetSpacing - D) / d;
-            result.push({
-                x: points[i-1].x + t * (points[i].x - points[i-1].x),
-                y: points[i-1].y + t * (points[i].y - points[i-1].y)
-            });
-            points.splice(i, 0, {...points[i]}); // Вставляем новую точку
-            D = 0;
-        } else {
-            D += d;
-        }
-    }
-    
-    // Обрезаем или дополняем до ровно n точек
-    while (result.length < n) {
-        result.push({...result[result.length-1]});
-    }
-    return result.slice(0, n);
+    const score = 1.0 - bestDist / HalfDiagonal;
+    return new GestureResult(
+      bestIdx === -1 ? "No match" : self.templates[bestIdx].Name,
+      score,
+      0
+    );
+  };
+
+  // === ШАБЛОНЫ ФИГУР (с поддержкой обоих направлений) ===
+  const circle = [
+    new Point(127, 141),
+    new Point(124, 140),
+    new Point(120, 139),
+    new Point(118, 139),
+    new Point(116, 139),
+    new Point(111, 140),
+    new Point(109, 141),
+    new Point(104, 144),
+    new Point(100, 147),
+    new Point(96, 152),
+    new Point(93, 157),
+    new Point(90, 163),
+    new Point(87, 169),
+    new Point(85, 175),
+    new Point(83, 181),
+    new Point(82, 190),
+    new Point(82, 195),
+    new Point(83, 200),
+    new Point(84, 205),
+    new Point(88, 213),
+    new Point(91, 216),
+    new Point(96, 219),
+    new Point(103, 222),
+    new Point(108, 224),
+    new Point(111, 224),
+    new Point(120, 224),
+    new Point(133, 223),
+    new Point(142, 222),
+    new Point(152, 218),
+    new Point(160, 214),
+    new Point(167, 210),
+    new Point(173, 204),
+    new Point(178, 198),
+    new Point(179, 196),
+    new Point(182, 188),
+    new Point(182, 177),
+    new Point(178, 167),
+    new Point(170, 150),
+    new Point(163, 138),
+    new Point(152, 130),
+    new Point(143, 129),
+    new Point(140, 131),
+    new Point(129, 136),
+    new Point(126, 139)
+  ];
+  this.addTemplate("circle", circle);
+  this.addTemplate("circle", reversePoints(circle));
+
+  const triangle = [
+    new Point(137, 139),
+    new Point(135, 141),
+    new Point(133, 144),
+    new Point(132, 146),
+    new Point(130, 149),
+    new Point(128, 151),
+    new Point(126, 155),
+    new Point(123, 160),
+    new Point(120, 166),
+    new Point(116, 171),
+    new Point(112, 177),
+    new Point(107, 183),
+    new Point(102, 188),
+    new Point(100, 191),
+    new Point(95, 195),
+    new Point(90, 199),
+    new Point(86, 203),
+    new Point(82, 206),
+    new Point(80, 209),
+    new Point(75, 213),
+    new Point(73, 213),
+    new Point(70, 216),
+    new Point(67, 219),
+    new Point(64, 221),
+    new Point(61, 223),
+    new Point(60, 225),
+    new Point(62, 226),
+    new Point(65, 225),
+    new Point(67, 226),
+    new Point(74, 226),
+    new Point(77, 227),
+    new Point(85, 229),
+    new Point(91, 230),
+    new Point(99, 231),
+    new Point(108, 232),
+    new Point(116, 233),
+    new Point(125, 233),
+    new Point(134, 234),
+    new Point(145, 233),
+    new Point(153, 232),
+    new Point(160, 233),
+    new Point(170, 234),
+    new Point(177, 235),
+    new Point(179, 236),
+    new Point(186, 237),
+    new Point(193, 238),
+    new Point(198, 239),
+    new Point(200, 237),
+    new Point(202, 239),
+    new Point(204, 238),
+    new Point(206, 234),
+    new Point(205, 230),
+    new Point(202, 222),
+    new Point(197, 216),
+    new Point(192, 207),
+    new Point(186, 198),
+    new Point(179, 189),
+    new Point(174, 183),
+    new Point(170, 178),
+    new Point(164, 171),
+    new Point(161, 168),
+    new Point(154, 160),
+    new Point(148, 155),
+    new Point(143, 150),
+    new Point(138, 148),
+    new Point(136, 148)
+  ];
+  this.addTemplate("triangle", triangle);
+  this.addTemplate("triangle", reversePoints(triangle));
+
+  const square = [
+    new Point(78, 149),
+    new Point(78, 153),
+    new Point(78, 157),
+    new Point(78, 160),
+    new Point(79, 162),
+    new Point(79, 164),
+    new Point(79, 167),
+    new Point(79, 169),
+    new Point(79, 173),
+    new Point(79, 178),
+    new Point(79, 183),
+    new Point(80, 189),
+    new Point(80, 193),
+    new Point(80, 198),
+    new Point(80, 202),
+    new Point(81, 208),
+    new Point(81, 210),
+    new Point(81, 216),
+    new Point(82, 222),
+    new Point(82, 224),
+    new Point(82, 227),
+    new Point(83, 229),
+    new Point(83, 231),
+    new Point(85, 230),
+    new Point(88, 232),
+    new Point(90, 233),
+    new Point(92, 232),
+    new Point(94, 233),
+    new Point(99, 232),
+    new Point(102, 233),
+    new Point(106, 233),
+    new Point(109, 234),
+    new Point(117, 235),
+    new Point(123, 236),
+    new Point(126, 236),
+    new Point(135, 237),
+    new Point(142, 238),
+    new Point(145, 238),
+    new Point(152, 238),
+    new Point(154, 239),
+    new Point(165, 238),
+    new Point(174, 237),
+    new Point(179, 236),
+    new Point(186, 235),
+    new Point(191, 235),
+    new Point(195, 233),
+    new Point(197, 233),
+    new Point(200, 233),
+    new Point(201, 235),
+    new Point(201, 233),
+    new Point(199, 231),
+    new Point(198, 226),
+    new Point(198, 220),
+    new Point(196, 207),
+    new Point(195, 195),
+    new Point(195, 181),
+    new Point(195, 173),
+    new Point(195, 163),
+    new Point(194, 155),
+    new Point(192, 145),
+    new Point(192, 143),
+    new Point(192, 138),
+    new Point(191, 135),
+    new Point(191, 133),
+    new Point(191, 130),
+    new Point(190, 128),
+    new Point(188, 129),
+    new Point(186, 129),
+    new Point(181, 132),
+    new Point(173, 131),
+    new Point(162, 131),
+    new Point(151, 132),
+    new Point(149, 132),
+    new Point(138, 132),
+    new Point(136, 132),
+    new Point(122, 131),
+    new Point(120, 131),
+    new Point(109, 130),
+    new Point(107, 130),
+    new Point(90, 132),
+    new Point(81, 133),
+    new Point(76, 133)
+  ];
+  this.addTemplate("square", square);
+  this.addTemplate("square", reversePoints(square));
+}
+function reversePoints(points) {
+  return points
+    .slice()
+    .reverse()
+    .map((p) => new Point(p.X, p.Y));
 }
 
-function normalizePath(points) {
-    // Центрирование
-    const centroid = { x: 0, y: 0 };
-    for (const p of points) {
-        centroid.x += p.x;
-        centroid.y += p.y;
-    }
-    centroid.x /= points.length;
-    centroid.y /= points.length;
-    
-    const centered = points.map(p => ({
-        x: p.x - centroid.x,
-        y: p.y - centroid.y
-    }));
-    
-    // Масштабирование к квадрату 250×250
-    let maxCoord = 0;
-    for (const p of centered) {
-        maxCoord = Math.max(maxCoord, Math.abs(p.x), Math.abs(p.y));
-    }
-    if (maxCoord === 0) maxCoord = 1;
-    
-    return centered.map(p => ({
-        x: (p.x / maxCoord) * 125,
-        y: (p.y / maxCoord) * 125
-    }));
-}
+// Глобальный экземпляр распознавателя
+const shapeRecognizer = new DollarRecognizer();
 
-function generateTemplate(type) {
-    // Простые эталонные шаблоны (64 точки)
-    const templates = {
-        line: () => {
-            const pts = [];
-            for (let i = 0; i < 64; i++) {
-                const t = i / 63;
-                pts.push({ x: -125 + t * 250, y: 0 });
-            }
-            return pts;
-        },
-        square: () => {
-            const pts = [], size = 100;
-            // 16 точек на сторону
-            for (let i = 0; i < 16; i++) pts.push({ x: -size + i*(2*size/15), y: -size });
-            for (let i = 0; i < 16; i++) pts.push({ x: size, y: -size + i*(2*size/15) });
-            for (let i = 0; i < 16; i++) pts.push({ x: size - i*(2*size/15), y: size });
-            for (let i = 0; i < 16; i++) pts.push({ x: -size, y: size - i*(2*size/15) });
-            return pts.slice(0, 64);
-        },
-        circle: () => {
-            const pts = [], r = 100;
-            for (let i = 0; i < 64; i++) {
-                const a = (i / 64) * Math.PI * 2;
-                pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
-            }
-            return pts;
-        },
-        triangle: () => {
-            const pts = [], h = 100, w = 120;
-            // Вершина сверху, основание снизу
-            for (let i = 0; i < 22; i++) {
-                const t = i/21;
-                pts.push({ x: -w/2 + t*w, y: h - t*2*h });
-            }
-            for (let i = 0; i < 21; i++) {
-                const t = i/20;
-                pts.push({ x: w/2 - t*w, y: -h + t*2*h });
-            }
-            for (let i = 0; i < 21; i++) {
-                const t = i/20;
-                pts.push({ x: -w/2 + t*w, y: -h });
-            }
-            return pts.slice(0, 64);
-        }
-    };
-    return templates[type]();
-}
+// Вспомогательные функции для упражнения
+const SHAPE_TYPES_GESTURE = ["circle", "square", "triangle"];
+const SHAPE_EMOJI = { circle: "🔵", square: "🟦", triangle: "🔺" };
+const SHAPE_NAMES_RU = {
+  circle: "круг",
+  square: "квадрат",
+  triangle: "треугольник"
+};
 
-function pathDistance(p1, p2) {
-    let d = 0;
-    for (let i = 0; i < p1.length; i++) {
-        d += Math.hypot(p1[i].x - p2[i].x, p1[i].y - p2[i].y);
-    }
-    return d / p1.length;
-}
-
-function getBoundingBox(path) {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of path) {
-        minX = Math.min(minX, p.x);
-        maxX = Math.max(maxX, p.x);
-        minY = Math.min(minY, p.y);
-        maxY = Math.max(maxY, p.y);
-    }
-    return { minX, maxX, minY, maxY, width: maxX-minX, height: maxY-minY };
-}
-
-// Показ обратной связи
-function showFeedback(message, type) {
-  const feedback = document.getElementById("feedback");
-  feedback.textContent = message;
-  feedback.className = "feedback " + (type === "success" ? "success" : "error");
-  feedback.classList.remove("hidden");
-  setTimeout(() => {
-    feedback.classList.add("hidden");
-  }, 2000);
-}
+//	================ конец найди и повтори =====================
 
 // В глобальной области (после всех функций)
 window.appVersion = FILE_VERSION;
