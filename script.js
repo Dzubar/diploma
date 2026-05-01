@@ -2416,11 +2416,6 @@ function drawFinishMark() {
 }
 
 // Вибрация устройства
-function vibrateDevice() {
-  if ("vibrate" in navigator) {
-    navigator.vibrate(50); // 50ms вибрация
-  }
-}
 // Шаблоны упражнений
 function drawExerciseTemplate(exercise) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
