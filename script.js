@@ -70,7 +70,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.2.8b отладка найти и повторить"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.3.0b отладка найти и повторить"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -857,17 +857,20 @@ function displayExercise(exercise) {
     }));
   }
 
-  // Сброс для упражнения с распознаванием Найди и повтори
-  // Сброс для упражнения с распознаванием Найди и повтори
-  if (exercise.type === "gesture-shape") {
-    currentExercise.shapes = generateGestureShapes(); // Массив из 3 разных фигур
-    const targetIdx = Math.floor(Math.random() * 3);
-    currentExercise.targetShape = currentExercise.shapes[targetIdx].type;
+// Сброс для упражнения с распознаванием Найди и повтори
+if (exercise.type === "gesture-shape") {
+  currentExercise.shapes = generateGestureShapes(); 
+  // Случайно выбираем, какую именно фигуру нужно нарисовать
+  const targetIdx = Math.floor(Math.random() * 3);
+  currentExercise.targetShape = currentExercise.shapes[targetIdx].type;
+  
+  const shapeName = SHAPE_NAMES_RU[currentExercise.targetShape];
+  const emoji = SHAPE_EMOJI[currentExercise.targetShape];
 
-    const shapeName = SHAPE_NAMES_RU[currentExercise.targetShape];
-    document.getElementById("instruction").textContent =
-      `Найди ${SHAPE_EMOJI[currentExercise.targetShape]} "${shapeName}" и нарисуй его справа одним движением`;
-  }
+  // ✅ ИСПОЛЬЗУЕМ innerHTML для применения стилей
+  const instructionEl = document.getElementById("instruction");
+  instructionEl.innerHTML = `Найди <span style="font-size:1.4em; vertical-align:middle;">${emoji}</span> <span style="font-weight:bold; color:#06111a;">"${shapeName}"</span> и нарисуй его справа одним движением`;
+}
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -5794,16 +5797,8 @@ function generateGestureShape() {
 
 // Генерация трёх перекрывающихся фигур
 function generateGestureShapes() {
-  // Пул цветов
-  const colors = [
-    "#FF5252",
-    "#4FC3F7",
-    "#69F0AE",
-    "#FFD740",
-    "#BA68C8",
-    "#FF8A65"
-  ];
-  // ✅ Перемешиваем массив цветов (Fisher-Yates shuffle)
+  const colors = ["#FF5252", "#4FC3F7", "#69F0AE", "#FFD740", "#BA68C8", "#FF8A65"];
+  // Перемешиваем цвета (гарантия 3 разных)
   for (let i = colors.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [colors[i], colors[j]] = [colors[j], colors[i]];
@@ -5813,34 +5808,38 @@ function generateGestureShapes() {
   const halfW = canvas.width / 2;
   const halfH = canvas.height;
 
-  // Перемешиваем типы фигур, чтобы гарантировать уникальность (круг, квадрат, треугольник)
+  // Перемешиваем типы фигур (круг, квадрат, треугольник)
   const types = [...SHAPE_TYPES_GESTURE];
   for (let i = types.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [types[i], types[j]] = [types[j], types[i]];
   }
 
+  // Центр кластера
+  const clusterCx = halfW * 0.5;
+  const clusterCy = halfH * 0.5;
+
+  // ✅ УВЕЛИЧЕННЫЙ РАЗБРОС (акцент на вертикаль)
+  const spreadX = halfW * 0.10;  // Горизонтальный разброс
+  const spreadY = halfH * 0.16;  // Вертикальный разброс (увеличен)
+
+  // Размер подбирается так, чтобы при таком разбросе фигуры ВСЕГДА накрывали центр кластера
+  // и гарантированно пересекались между собой
+  const size = halfW * (0.26 + Math.random() * 0.06);
+
   for (let i = 0; i < 3; i++) {
     const type = types[i];
-    const color = colors[i]; // ✅ Берём уникальный цвет из перемешанного массива
+    const color = colors[i];
 
-    // Размер: 20-30% от ширины левой части
-    const size = halfW * (0.2 + Math.random() * 0.1);
-
-    // Строгие границы, чтобы фигуры не вылезали в правую часть
-    const margin = halfW * 0.05;
-    const minCx = size + margin;
-    const maxCx = halfW - size - margin;
-    const cx = minCx + Math.random() * (maxCx - minCx);
-
-    const minCy = size + margin;
-    const maxCy = halfH - size - margin;
-    const cy = minCy + Math.random() * (maxCy - minCy);
+    // Случайное смещение от центра кластера
+    const cx = clusterCx + (Math.random() - 0.5) * 2 * spreadX;
+    const cy = clusterCy + (Math.random() - 0.5) * 2 * spreadY;
 
     shapes.push({ type, color, size, cx, cy });
   }
   return shapes;
 }
+
 
 // Рисование одной фигуры (для шаблона с тремя фигурами)
 function drawSingleShape(shape) {
