@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 Угадай фигуру — $1 Recognizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; font-family: 'Consolas', 'Monaco', monospace;
+      background: #1a1a1a; color: #e0e0e0; overflow: hidden;
+    }
+    
+    .game-wrapper {
+      display: flex; height: 100%;
+    }
+    
+    /* Левая панель — целевая фигура */
+    .target-panel {
+      flex: 0 0 35%; min-width: 280px;
+      background: linear-gradient(145deg, #252525, #1e1e1e);
+      border-right: 3px solid #444;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 20px; text-align: center;
+      position: relative;
+    }
+    
+    .target-title {
+      color: #888; font-size: 14px; margin-bottom: 15px;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    
+    .target-display {
+      width: 200px; height: 200px;
+      background: #2d2d2d; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 10px 0; position: relative;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.4);
+    }
+    
+    .target-canvas {
+      width: 160px; height: 160px;
+    }
+    
+    .target-name {
+      font-size: 24px; font-weight: bold;
+      margin: 15px 0 10px; color: #fff;
+    }
+    
+    .target-hint {
+      color: #66bbff; font-size: 12px; margin-top: 8px;
+    }
+    
+    .next-btn {
+      margin-top: 20px; padding: 12px 30px;
+      background: #4fc3f7; color: #1a1a1a;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: bold;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .next-btn:hover { background: #29b6f6; transform: translateY(-2px); }
+    .next-btn:active { transform: translateY(0); }
+    
+    /* Правая панель — рисование */
+    .draw-panel {
+      flex: 1; display: flex; flex-direction: column;
+      background: #1a1a1a; position: relative;
+    }
+    
+    #draw-canvas {
+      flex: 1; background: #252525; cursor: crosshair;
+      display: block; border-bottom: 3px solid #444;
+    }
+    
+    /* Панель результатов */
+    .result-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 100; animation: fadeIn 0.2s ease;
+    }
+    
+    .result-overlay.show { display: flex; }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .result-icon {
+      font-size: 80px; margin-bottom: 20px;
+      animation: bounce 0.5s ease;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    .result-title {
+      font-size: 28px; font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .result-title.success { color: #00ff88; }
+    .result-title.error { color: #ff6666; }
+    
+    .result-msg {
+      color: #aaa; font-size: 14px; margin-bottom: 25px;
+      text-align: center; max-width: 80%;
+    }
+    
+    .result-stats {
+      color: #66bbff; font-size: 12px; margin-bottom: 20px;
+    }
+    
+    .result-btn {
+      padding: 14px 40px; font-size: 16px; font-weight: bold;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .result-btn.success {
+      background: #00c853; color: #fff;
+    }
+    .result-btn.success:hover { background: #00b347; }
+    
+    .result-btn.error {
+      background: #ff5252; color: #fff;
+    }
+    .result-btn.error:hover { background: #e54848; }
+    
+    /* Отладочная панель */
+    #debug {
+      height: 180px; background: #0d0d0d;
+      padding: 10px 15px; overflow-y: auto;
+      font-size: 11px; line-height: 1.35;
+      white-space: pre-wrap; color: #00ff66;
+      border-top: 2px solid #333;
+    }
+    
+    .debug-title { color: #888; font-weight: bold; margin-bottom: 6px; display: block; }
+    .metric { color: #66bbff; }
+    .divider { color: #555; }
+    
+    /* Адаптив */
+    @media (max-width: 700px) {
+      .game-wrapper { flex-direction: column; }
+      .target-panel { flex: 0 0 auto; min-width: 100%; border-right: none; border-bottom: 3px solid #444; }
+      .target-display { width: 150px; height: 150px; }
+      .target-canvas { width: 120px; height: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- Левая панель: целевая фигура -->
+    <div class="target-panel">
+      <div class="target-title">🎯 Нарисуйте эту фигуру</div>
+      <div class="target-display">
+        <canvas id="target-canvas" class="target-canvas"></canvas>
+      </div>
+      <div class="target-name" id="target-name">КРУГ</div>
+      <div class="target-hint" id="target-hint">💡 Рисуйте в любом направлении</div>
+      <button class="next-btn" id="next-btn">➡️ Следующая фигура</button>
+    </div>
+    
+    <!-- Правая панель: рисование -->
+    <div class="draw-panel">
+      <canvas id="draw-canvas"></canvas>
+      
+      <!-- Оверлей результата -->
+      <div class="result-overlay" id="result-overlay">
+        <div class="result-icon" id="result-icon">🎉</div>
+        <div class="result-title" id="result-title">Отлично!</div>
+        <div class="result-msg" id="result-msg">Вы правильно нарисовали круг!</div>
+        <div class="result-stats" id="result-stats"></div>
+        <button class="result-btn" id="result-btn">Продолжить</button>
+      </div>
+      
+      <!-- Отладка -->
+      <div id="debug"><span class="debug-title">🛠 Отладка</span>Готово к игре...</div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================================================
+    // $1 UNISTROKE RECOGNIZER
+    // ========================================================================
+    function Point(x, y) { this.X = x; this.Y = y; }
+    function Rectangle(x, y, w, h) { this.X = x; this.Y = y; this.Width = w; this.Height = h; }
+    function Result(name, score, time) { this.Name = name; this.Score = score; this.Time = time; }
+
+    const NumPoints = 64, SquareSize = 250.0, Origin = new Point(0, 0);
+    const Diagonal = Math.sqrt(SquareSize * SquareSize + SquareSize * SquareSize);
+    const HalfDiagonal = 0.5 * Diagonal;
+    const AngleRange = Deg2Rad(45.0), AnglePrecision = Deg2Rad(2.0);
+    const Phi = 0.5 * (-1.0 + Math.sqrt(5.0));
+
+    function Resample(points, n) {
+      const I = PathLength(points) / (n - 1); let D = 0.0;
+      const newpoints = [new Point(points[0].X, points[0].Y)];
+      const pts = points.map(p => new Point(p.X, p.Y));
+      for (let i = 1; i < pts.length; i++) {
+        const d = Distance(pts[i-1], pts[i]);
+        if ((D + d) >= I) {
+          const qx = pts[i-1].X + ((I - D) / d) * (pts[i].X - pts[i-1].X);
+          const qy = pts[i-1].Y + ((I - D) / d) * (pts[i].Y - pts[i-1].Y);
+          const q = new Point(qx, qy);
+          newpoints.push(q); pts.splice(i, 0, q); D = 0.0;
+        } else D += d;
+      }
+      if (newpoints.length === n - 1) newpoints.push(new Point(pts[pts.length-1].X, pts[pts.length-1].Y));
+      return newpoints;
+    }
+    function IndicativeAngle(points) { const c = Centroid(points); return Math.atan2(c.Y - points[0].Y, c.X - points[0].X); }
+    function RotateBy(points, radians) {
+      const c = Centroid(points), cos = Math.cos(radians), sin = Math.sin(radians), newpoints = [];
+      for (const p of points) {
+        const qx = (p.X - c.X) * cos - (p.Y - c.Y) * sin + c.X;
+        const qy = (p.X - c.X) * sin + (p.Y - c.Y) * cos + c.Y;
+        newpoints.push(new Point(qx, qy));
+      }
+      return newpoints;
+    }
+    function ScaleTo(points, size) {
+      const B = BoundingBox(points), newpoints = [];
+      for (const p of points) newpoints.push(new Point(p.X * (size / B.Width), p.Y * (size / B.Height)));
+      return newpoints;
+    }
+    function TranslateTo(points, pt) {
+      const c = Centroid(points), newpoints = [];
+      for (const p of points) newpoints.push(new Point(p.X + pt.X - c.X, p.Y + pt.Y - c.Y));
+      return newpoints;
+    }
+    function Centroid(points) { let x = 0, y = 0; for (const p of points) { x += p.X; y += p.Y; } return new Point(x / points.length, y / points.length); }
+    function BoundingBox(points) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const p of points) { minX = Math.min(minX, p.X); maxX = Math.max(maxX, p.X); minY = Math.min(minY, p.Y); maxY = Math.max(maxY, p.Y); }
+      return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+    }
+    function PathDistance(pts1, pts2) { let d = 0; for (let i = 0; i < pts1.length; i++) d += Distance(pts1[i], pts2[i]); return d / pts1.length; }
+    function PathLength(points) { let d = 0; for (let i = 1; i < points.length; i++) d += Distance(points[i-1], points[i]); return d; }
+    function Distance(p1, p2) { const dx = p2.X - p1.X, dy = p2.Y - p1.Y; return Math.sqrt(dx * dx + dy * dy); }
+    function Deg2Rad(d) { return d * Math.PI / 180.0; }
+    function DistanceAtBestAngle(points, template, a, b, threshold) {
+      let x1 = Phi * a + (1 - Phi) * b, f1 = DistanceAtAngle(points, template, x1);
+      let x2 = (1 - Phi) * a + Phi * b, f2 = DistanceAtAngle(points, template, x2);
+      while (Math.abs(b - a) > threshold) {
+        if (f1 < f2) { b = x2; x2 = x1; f2 = f1; x1 = Phi * a + (1 - Phi) * b; f1 = DistanceAtAngle(points, template, x1); }
+        else { a = x1; x1 = x2; f1 = f2; x2 = (1 - Phi) * a + Phi * b; f2 = DistanceAtAngle(points, template, x2); }
+      }
+      return Math.min(f1, f2);
+    }
+    function DistanceAtAngle(points, template, radians) { return PathDistance(RotateBy(points, radians), template.Points); }
+
+    function Unistroke(name, points) {
+      this.Name = name;
+      this.Points = Resample(points, NumPoints);
+      const radians = IndicativeAngle(this.Points);
+      this.Points = RotateBy(this.Points, -radians);
+      this.Points = ScaleTo(this.Points, SquareSize);
+      this.Points = TranslateTo(this.Points, Origin);
+    }
+
+    function DollarRecognizer() {
+      this.templates = []; const self = this;
+      this.addTemplate = function(name, points) { self.templates.push(new Unistroke(name, points)); };
+      this.recognize = function(points) {
+        if (points.length < 10) return new Result("Too few points", 0, 0);
+        const t0 = Date.now(), candidate = new Unistroke("", points);
+        let bestIdx = -1, bestDist = Infinity;
+        for (let i = 0; i < self.templates.length; i++) {
+          const d = DistanceAtBestAngle(candidate.Points, self.templates[i], -AngleRange, +AngleRange, AnglePrecision);
+          if (d < bestDist) { bestDist = d; bestIdx = i; }
+        }
+        const t1 = Date.now(), score = 1.0 - bestDist / HalfDiagonal;
+        return new Result(bestIdx === -1 ? "No match" : self.templates[bestIdx].Name, score, t1 - t0);
+      };
+
+      // Оригинальные шаблоны
+      const circle = [new Point(127,141),new Point(124,140),new Point(120,139),new Point(118,139),new Point(116,139),new Point(111,140),new Point(109,141),new Point(104,144),new Point(100,147),new Point(96,152),new Point(93,157),new Point(90,163),new Point(87,169),new Point(85,175),new Point(83,181),new Point(82,190),new Point(82,195),new Point(83,200),new Point(84,205),new Point(88,213),new Point(91,216),new Point(96,219),new Point(103,222),new Point(108,224),new Point(111,224),new Point(120,224),new Point(133,223),new Point(142,222),new Point(152,218),new Point(160,214),new Point(167,210),new Point(173,204),new Point(178,198),new Point(179,196),new Point(182,188),new Point(182,177),new Point(178,167),new Point(170,150),new Point(163,138),new Point(152,130),new Point(143,129),new Point(140,131),new Point(129,136),new Point(126,139)];
+      this.addTemplate('circle', circle);
+      this.addTemplate('circle', reversePoints(circle));
+      
+      this.addTemplate('triangle', [new Point(137,139),new Point(135,141),new Point(133,144),new Point(132,146),new Point(130,149),new Point(128,151),new Point(126,155),new Point(123,160),new Point(120,166),new Point(116,171),new Point(112,177),new Point(107,183),new Point(102,188),new Point(100,191),new Point(95,195),new Point(90,199),new Point(86,203),new Point(82,206),new Point(80,209),new Point(75,213),new Point(73,213),new Point(70,216),new Point(67,219),new Point(64,221),new Point(61,223),new Point(60,225),new Point(62,226),new Point(65,225),new Point(67,226),new Point(74,226),new Point(77,227),new Point(85,229),new Point(91,230),new Point(99,231),new Point(108,232),new Point(116,233),new Point(125,233),new Point(134,234),new Point(145,233),new Point(153,232),new Point(160,233),new Point(170,234),new Point(177,235),new Point(179,236),new Point(186,237),new Point(193,238),new Point(198,239),new Point(200,237),new Point(202,239),new Point(204,238),new Point(206,234),new Point(205,230),new Point(202,222),new Point(197,216),new Point(192,207),new Point(186,198),new Point(179,189),new Point(174,183),new Point(170,178),new Point(164,171),new Point(161,168),new Point(154,160),new Point(148,155),new Point(143,150),new Point(138,148),new Point(136,148)]);
+      
+      this.addTemplate('square', [new Point(78,149),new Point(78,153),new Point(78,157),new Point(78,160),new Point(79,162),new Point(79,164),new Point(79,167),new Point(79,169),new Point(79,173),new Point(79,178),new Point(79,183),new Point(80,189),new Point(80,193),new Point(80,198),new Point(80,202),new Point(81,208),new Point(81,210),new Point(81,216),new Point(82,222),new Point(82,224),new Point(82,227),new Point(83,229),new Point(83,231),new Point(85,230),new Point(88,232),new Point(90,233),new Point(92,232),new Point(94,233),new Point(99,232),new Point(102,233),new Point(106,233),new Point(109,234),new Point(117,235),new Point(123,236),new Point(126,236),new Point(135,237),new Point(142,238),new Point(145,238),new Point(152,238),new Point(154,239),new Point(165,238),new Point(174,237),new Point(179,236),new Point(186,235),new Point(191,235),new Point(195,233),new Point(197,233),new Point(200,233),new Point(201,235),new Point(201,233),new Point(199,231),new Point(198,226),new Point(198,220),new Point(196,207),new Point(195,195),new Point(195,181),new Point(195,173),new Point(195,163),new Point(194,155),new Point(192,145),new Point(192,143),new Point(192,138),new Point(191,135),new Point(191,133),new Point(191,130),new Point(190,128),new Point(188,129),new Point(186,129),new Point(181,132),new Point(173,131),new Point(162,131),new Point(151,132),new Point(149,132),new Point(138,132),new Point(136,132),new Point(122,131),new Point(120,131),new Point(109,130),new Point(107,130),new Point(90,132),new Point(81,133),new Point(76,133)]);
+    }
+    function reversePoints(points) { return points.slice().reverse().map(p => new Point(p.X, p.Y)); }
+
+    // ========================================================================
+    // GAME LOGIC
+    // ========================================================================
+    const SHAPES = ['circle', 'triangle', 'square'];
+    const SHAPE_EMOJI = { circle: '🔵', triangle: '🔺', square: '🟦' };
+    const SHAPE_NAMES = { circle: 'КРУГ', triangle: 'ТРЕУГОЛЬНИК', square: 'КВАДРАТ' };
+    const SHAPE_HINTS = {
+      circle: '💡 Рисуйте плавно, в любом направлении',
+      triangle: '💡 Три угла, можно с закруглениями',
+      square: '💡 Четыре угла, начинайте с любого'
+    };
+
+    // Canvas setup
+    const drawCanvas = document.getElementById('draw-canvas');
+    const drawCtx = drawCanvas.getContext('2d');
+    const targetCanvas = document.getElementById('target-canvas');
+    const targetCtx = targetCanvas.getContext('2d');
+    const debugEl = document.getElementById('debug');
+    
+    const targetPanel = document.querySelector('.target-panel');
+    const drawPanel = document.querySelector('.draw-panel');
+    
+    let dpr = window.devicePixelRatio || 1;
+    let points = [], isDrawing = false;
+    let currentTarget = null;
+    let gameStats = { total: 0, correct: 0 };
+
+    const recognizer = new DollarRecognizer();
+
+    function initCanvas(canvas, ctx) {
+      const r = canvas.getBoundingClientRect();
+      canvas.width = r.width * dpr;
+      canvas.height = r.height * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#4fc3f7';
+    }
+
+    function resizeCanvases() {
+      initCanvas(drawCanvas, drawCtx);
+      initCanvas(targetCanvas, targetCtx);
+      if (currentTarget) drawTargetShape(currentTarget);
+    }
+
+    // Настройка размеров при загрузке и ресайзе
+    window.addEventListener('load', () => {
+      resizeCanvases();
+      new ResizeObserver(resizeCanvases).observe(targetPanel);
+      new ResizeObserver(resizeCanvases).observe(drawPanel);
+      newGameRound();
+    });
+
+    function drawTargetShape(shape) {
+      targetCtx.clearRect(0, 0, targetCanvas.width/dpr, targetCanvas.height/dpr);
+      targetCtx.strokeStyle = '#ffcc00';
+      targetCtx.lineWidth = 4;
+      targetCtx.beginPath();
+      
+      const cx = 80, cy = 80, size = 60;
+      
+      if (shape === 'circle') {
+        targetCtx.arc(cx, cy, size, 0, Math.PI * 2);
+      } else if (shape === 'triangle') {
+        const h = size * Math.sqrt(3) / 2;
+        targetCtx.moveTo(cx, cy - h * 0.66);
+        targetCtx.lineTo(cx + size, cy + h * 0.33);
+        targetCtx.lineTo(cx - size, cy + h * 0.33);
+        targetCtx.closePath();
+      } else if (shape === 'square') {
+        targetCtx.rect(cx - size, cy - size, size * 2, size * 2);
+      }
+      targetCtx.stroke();
+    }
+
+    function newGameRound() {
+      currentTarget = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      document.getElementById('target-name').textContent = SHAPE_NAMES[currentTarget];
+      document.getElementById('target-hint').textContent = SHAPE_HINTS[currentTarget];
+      drawTargetShape(currentTarget);
+      clearDrawCanvas();
+      logDebug(`🎯 Новая цель: ${SHAPE_EMOJI[currentTarget]} ${SHAPE_NAMES[currentTarget]}`);
+    }
+
+    function clearDrawCanvas() {
+      drawCtx.clearRect(0, 0, drawCanvas.width/dpr, drawCanvas.height/dpr);
+      points = [];
+    }
+
+    function getPos(e) {
+      const r = drawCanvas.getBoundingClientRect();
+      return { X: e.clientX - r.left, Y: e.clientY - r.top };
+    }
+
+    function logDebug(msg) {
+      debugEl.innerHTML += `<br>${msg}`;
+      debugEl.scrollTop = debugEl.scrollHeight;
+    }
+
+    function redraw() {
+      if (points.length < 2) return;
+      drawCtx.beginPath();
+      drawCtx.moveTo(points[0].X, points[0].Y);
+      for (let i = 1; i < points.length; i++) drawCtx.lineTo(points[i].X, points[i].Y);
+      drawCtx.stroke();
+    }
+
+    // === События рисования ===
+    drawCanvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      points = [getPos(e)];
+      drawCtx.beginPath();
+      drawCtx.moveTo(points[0].X, points[0].Y);
+    });
+
+    drawCanvas.addEventListener('mousemove', (e) => {
+      if (!isDrawing) return;
+      const p = getPos(e);
+      if (Distance(points[points.length-1], p) > 3) {
+        points.push(p);
+        drawCtx.lineTo(p.X, p.Y);
+        drawCtx.stroke();
+      }
+    });
+
+    drawCanvas.addEventListener('mouseup', () => {
+      if (!isDrawing) return;
+      isDrawing = false;
+      checkAnswer();
+    });
+
+    drawCanvas.addEventListener('mouseleave', () => {
+      if (isDrawing) { isDrawing = false; checkAnswer(); }
+    });
+
+    // === Проверка ответа ===
+    function checkAnswer() {
+      if (points.length < 10) {
+        logDebug(`⚠️ Слишком мало точек: ${points.length}`);
+        return;
+      }
+
+      const result = recognizer.recognize(points);
+      const isCorrect = result.Name === currentTarget;
+      gameStats.total++;
+      if (isCorrect) gameStats.correct++;
+
+      showResult(isCorrect, result, currentTarget);
+      logDebug(`${isCorrect ? '✅' : '❌'} Распознано: ${result.Name.toUpperCase()} (${(result.Score*100).toFixed(1)}%) | Цель: ${currentTarget.toUpperCase()}`);
+    }
+
+    function showResult(isCorrect, result, target) {
+      const overlay = document.getElementById('result-overlay');
+      const icon = document.getElementById('result-icon');
+      const title = document.getElementById('result-title');
+      const msg = document.getElementById('result-msg');
+      const stats = document.getElementById('result-stats');
+      const btn = document.getElementById('result-btn');
+
+      if (isCorrect) {
+        icon.textContent = '🎉';
+        title.textContent = 'Отлично!';
+        title.className = 'result-title success';
+        msg.textContent = `Вы правильно нарисовали ${SHAPE_NAMES[target].toLowerCase()}!`;
+        btn.textContent = '➡️ Следующая фигура';
+        btn.className = 'result-btn success';
+        btn.onclick = () => { overlay.classList.remove('show'); newGameRound(); };
+      } else {
+        icon.textContent = '😅';
+        title.textContent = 'Попробуйте снова!';
+        title.className = 'result-title error';
+        msg.textContent = `Вы нарисовали: ${SHAPE_EMOJI[result.Name] || '❓'} ${result.Name.toUpperCase()}<br>А нужно было: ${SHAPE_EMOJI[target]} ${SHAPE_NAMES[target]}`;
+        btn.textContent = '🔄 Начать заново';
+        btn.className = 'result-btn error';
+        btn.onclick = () => { overlay.classList.remove('show'); clearDrawCanvas(); };
+      }
+
+      stats.textContent = `Точность: ${gameStats.correct}/${gameStats.total} (${Math.round(gameStats.correct/gameStats.total*100)}%) | Уверенность: ${(result.Score*100).toFixed(1)}%`;
+      overlay.classList.add('show');
+    }
+
+    // Кнопки
+    document.getElementById('next-btn').addEventListener('click', newGameRound);
+    document.getElementById('result-btn').addEventListener('click', () => {
+      document.getElementById('result-overlay').classList.remove('show');
+      newGameRound();
+    });
+
+    // Init debug
+    logDebug(`<span class="debug-title">🎮 Игра запущена</span>`);
+    logDebug(`<span class="metric">Фигуры: 🔵 Круг | 🔺 Треугольник | 🟦 Квадрат</span>`);
+    logDebug(`<span class="divider">─`.repeat(40));
+  </script>
+</body>
+</html>
