@@ -67,8 +67,24 @@ let dotRadius = 8; // Радиус точки в пикселях
 let dotTolerance = 15; // Допуск для попадания в точку (пиксели)
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
+// Переменные для "Найди и повтори"
+let filterShapes = []; // Массив фигур на левом поле
+let targetShape = null; // Целевая фигура для повторения
+let userFilterPath = []; // Путь пользователя
+let isDrawingFilter = false; // Флаг рисования
+
+// === ВОССТАНОВЛЕНО: Константы фигур и цветов ===
+const SHAPE_TYPES = ["line", "square", "circle", "triangle"];
+const COLORS = [
+    { name: "красный", hex: "#ff5252" },
+    { name: "жёлтый", hex: "#FFEB3B" },
+    { name: "зелёный", hex: "#4caf50" },
+    { name: "синий", hex: "#2196f3" }
+];
+// ================================================
+
 // Версия файла для отладки
-const FILE_VERSION = "1.2.6b 1е добавление найди и повтори"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.2.7b исправление найди и повтори"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
