@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Вертикальная волна</title>
+  <title>Вертикальная волна (Мягкий режим)</title>
   <style>
     :root {
       --bg: #f8fafc;
       --panel: #ffffff;
       --success: #10b981;
       --error: #ef4444;
-      --ghost: #cbd5e1;
       --active: #3b82f6;
     }
     body {
@@ -29,7 +28,7 @@
     #canvas-wrap {
       position: relative;
       width: 100%;
-      max-width: 360px; /* Оптимально для телефона в портрете */
+      max-width: 360px;
       background: var(--panel);
       border-radius: 16px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.08);
@@ -39,7 +38,7 @@
       display: block;
       width: 100%;
       height: auto;
-      touch-action: none; /* Блокирует скролл и зум браузера */
+      touch-action: none;
       cursor: crosshair;
     }
     #status {
@@ -80,11 +79,11 @@
       logicalWidth: 360,
       logicalHeight: 640,
       trackWidth: 100,        // Ширина рабочей дорожки
-      amplitude: 60,          // Размах волны (должен быть > trackWidth/2 для пересечения границ)
-      wavelength: 140,        // Вертикальная длина одной полной петли (вверх+вниз)
-      tolerance: 25,          // Допуск в пикселях (мягкая проверка для детей)
-      finishThreshold: 50,    // Сколько пикселей до низа считается "финишем"
-      startZone: 40           // Зона начала рисования сверху
+      amplitude: 80,          // Размах волны (пересекает границы)
+      wavelength: 120,        // Длина одной полной петли
+      tolerance: 45,          // !!! УВЕЛИЧЕНО: Допуск в пикселях (было 25)
+      finishThreshold: 50,    // Зона финиша
+      startZone: 40           // Зона старта
     };
 
     const canvas = document.getElementById('gameCanvas');
@@ -108,7 +107,6 @@
 
     // === ИНИЦИАЛИЗАЦИЯ ===
     function init() {
-      // Настройка canvas под Retina
       canvas.width = CONFIG.logicalWidth * state.dpr;
       canvas.height = CONFIG.logicalHeight * state.dpr;
       canvas.style.width = `${CONFIG.logicalWidth}px`;
@@ -119,9 +117,8 @@
       bindEvents();
     }
 
-    // Формула идеальной волны по вертикали
+    // Формула идеальной волны
     function getIdealX(y) {
-      // Сдвиг фазы на 20px, чтобы волна начиналась от центра плавно
       return CX + Math.sin((y + 20) / CONFIG.wavelength * 2 * Math.PI) * CONFIG.amplitude;
     }
 
@@ -129,7 +126,7 @@
     function drawScene() {
       ctx.clearRect(0, 0, CONFIG.logicalWidth, CONFIG.logicalHeight);
 
-      // 1. Границы рабочей строки (вертикальные линии)
+      // 1. Границы
       ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -137,7 +134,7 @@
       ctx.moveTo(TRACK_RIGHT, 0); ctx.lineTo(TRACK_RIGHT, CONFIG.logicalHeight);
       ctx.stroke();
 
-      // 2. Призрачный образец (первые 2 петли, пунктир)
+      // 2. Образец (2 петли)
       ctx.setLineDash([10, 10]);
       ctx.strokeStyle = '#94a3b8';
       ctx.lineWidth = 5;
@@ -145,7 +142,7 @@
       ctx.lineJoin = 'round';
       ctx.beginPath();
       
-      const sampleEndY = CONFIG.wavelength * 2 + 40; // Рисуем 2 полные волны
+      const sampleEndY = CONFIG.wavelength * 2 + 40; 
       for (let y = CONFIG.startZone; y < sampleEndY; y += 4) {
         const x = getIdealX(y);
         if (y === CONFIG.startZone) ctx.moveTo(x, y);
@@ -194,8 +191,6 @@
       if (state.finished) return;
       e.preventDefault();
       const p = getCanvasCoords(e);
-      
-      // Разрешаем начать только в верхней зоне
       if (p.y < CONFIG.startZone) {
         state.isDrawing = true;
         state.points = [p];
@@ -214,8 +209,7 @@
       state.points.push(p);
       drawScene();
 
-      // === ГЛАВНОЕ ИЗМЕНЕНИЕ: ПРОВЕРКА ПРИ ДОСТИЖЕНИИ КРАЯ ===
-      // Срабатывает сразу, как только Y пересекает порог финиша
+      // Проверка при достижении края (работает даже если палец еще нажат)
       if (p.y >= FINISH_Y) {
         validateAndFinish();
       }
@@ -229,12 +223,12 @@
     // === ВАЛИДАЦИЯ ===
     function validateAndFinish() {
       state.finished = true;
-      state.isDrawing = false; // Останавливаем рисование
+      state.isDrawing = false; 
       
       let totalChecked = 0;
       let withinTolerance = 0;
       
-      // Пропускаем первые 15 точек (зона разгона/прицеливания)
+      // Пропускаем первые точки (разгон)
       for (let i = 15; i < state.points.length; i++) {
         const p = state.points[i];
         const ideal = getIdealX(p.y);
@@ -246,18 +240,18 @@
         totalChecked++;
       }
 
-      // Успех, если >= 75% точек попали в допуск
       const successRate = totalChecked > 0 ? (withinTolerance / totalChecked) : 0;
       
-      if (successRate >= 0.75) {
-        statusEl.textContent = 'Отлично! Ритм и форма соблюдены ✅';
+      // !!! ИЗМЕНЕНО: Порог снижен до 60% (было 75%)
+      if (successRate >= 0.60) {
+        statusEl.textContent = 'Отлично! Вы справились! ✅';
         statusEl.style.color = '#10b981';
       } else {
-        statusEl.textContent = 'Попробуйте точнее следовать пунктиру';
+        statusEl.textContent = 'Попробуйте еще разок';
         statusEl.style.color = '#ef4444';
       }
       
-      drawScene(); // Перерисовка для финального цвета линии
+      drawScene();
     }
 
     function resetGame() {
@@ -269,7 +263,6 @@
       drawScene();
     }
 
-    // Запуск
     init();
   </script>
 </body>
