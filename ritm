@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Вертикальная волна</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --success: #10b981;
+      --error: #ef4444;
+      --ghost: #cbd5e1;
+      --active: #3b82f6;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      margin: 0;
+      padding: 16px;
+      min-height: 100vh;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 360px; /* Оптимально для телефона в портрете */
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none; /* Блокирует скролл и зум браузера */
+      cursor: crosshair;
+    }
+    #status {
+      margin-top: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      min-height: 24px;
+      color: #475569;
+      text-align: center;
+    }
+    button {
+      margin-top: 12px;
+      padding: 10px 24px;
+      font-size: 15px;
+      border: none;
+      border-radius: 10px;
+      background: #4f46e5;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+    button:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-wrap">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  
+  <div id="status">Ведите линию сверху вниз по пунктиру</div>
+  <button id="resetBtn">Начать заново</button>
+
+  <script>
+    // === КОНФИГУРАЦИЯ ===
+    const CONFIG = {
+      logicalWidth: 360,
+      logicalHeight: 640,
+      trackWidth: 100,        // Ширина рабочей дорожки
+      amplitude: 60,          // Размах волны (должен быть > trackWidth/2 для пересечения границ)
+      wavelength: 140,        // Вертикальная длина одной полной петли (вверх+вниз)
+      tolerance: 25,          // Допуск в пикселях (мягкая проверка для детей)
+      finishThreshold: 50,    // Сколько пикселей до низа считается "финишем"
+      startZone: 40           // Зона начала рисования сверху
+    };
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Вычисляемые константы
+    const CX = CONFIG.logicalWidth / 2;
+    const TRACK_LEFT = CX - CONFIG.trackWidth / 2;
+    const TRACK_RIGHT = CX + CONFIG.trackWidth / 2;
+    const FINISH_Y = CONFIG.logicalHeight - CONFIG.finishThreshold;
+
+    // === СОСТОЯНИЕ ===
+    const state = {
+      isDrawing: false,
+      points: [],
+      finished: false,
+      dpr: window.devicePixelRatio || 1
+    };
+
+    // === ИНИЦИАЛИЗАЦИЯ ===
+    function init() {
+      // Настройка canvas под Retina
+      canvas.width = CONFIG.logicalWidth * state.dpr;
+      canvas.height = CONFIG.logicalHeight * state.dpr;
+      canvas.style.width = `${CONFIG.logicalWidth}px`;
+      canvas.style.height = `${CONFIG.logicalHeight}px`;
+      ctx.scale(state.dpr, state.dpr);
+
+      drawScene();
+      bindEvents();
+    }
+
+    // Формула идеальной волны по вертикали
+    function getIdealX(y) {
+      // Сдвиг фазы на 20px, чтобы волна начиналась от центра плавно
+      return CX + Math.sin((y + 20) / CONFIG.wavelength * 2 * Math.PI) * CONFIG.amplitude;
+    }
+
+    // === ОТРИСОВКА ===
+    function drawScene() {
+      ctx.clearRect(0, 0, CONFIG.logicalWidth, CONFIG.logicalHeight);
+
+      // 1. Границы рабочей строки (вертикальные линии)
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(TRACK_LEFT, 0); ctx.lineTo(TRACK_LEFT, CONFIG.logicalHeight);
+      ctx.moveTo(TRACK_RIGHT, 0); ctx.lineTo(TRACK_RIGHT, CONFIG.logicalHeight);
+      ctx.stroke();
+
+      // 2. Призрачный образец (первые 2 петли, пунктир)
+      ctx.setLineDash([10, 10]);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      
+      const sampleEndY = CONFIG.wavelength * 2 + 40; // Рисуем 2 полные волны
+      for (let y = CONFIG.startZone; y < sampleEndY; y += 4) {
+        const x = getIdealX(y);
+        if (y === CONFIG.startZone) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 3. Линия пользователя
+      if (state.points.length > 0) {
+        ctx.strokeStyle = state.finished ? '#10b981' : '#3b82f6';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(state.points[0].x, state.points[0].y);
+        for (let i = 1; i < state.points.length; i++) {
+          ctx.lineTo(state.points[i].x, state.points[i].y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // === ОБРАБОТКА ВВОДА ===
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CONFIG.logicalWidth / rect.width;
+      const scaleY = CONFIG.logicalHeight / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function bindEvents() {
+      canvas.addEventListener('pointerdown', onDown);
+      canvas.addEventListener('pointermove', onMove);
+      canvas.addEventListener('pointerup', onUp);
+      canvas.addEventListener('pointercancel', onUp);
+      resetBtn.addEventListener('click', resetGame);
+    }
+
+    function onDown(e) {
+      if (state.finished) return;
+      e.preventDefault();
+      const p = getCanvasCoords(e);
+      
+      // Разрешаем начать только в верхней зоне
+      if (p.y < CONFIG.startZone) {
+        state.isDrawing = true;
+        state.points = [p];
+        state.finished = false;
+        statusEl.textContent = 'Рисуйте вниз...';
+        statusEl.style.color = '#475569';
+        drawScene();
+      }
+    }
+
+    function onMove(e) {
+      if (!state.isDrawing || state.finished) return;
+      e.preventDefault();
+      
+      const p = getCanvasCoords(e);
+      state.points.push(p);
+      drawScene();
+
+      // === ГЛАВНОЕ ИЗМЕНЕНИЕ: ПРОВЕРКА ПРИ ДОСТИЖЕНИИ КРАЯ ===
+      // Срабатывает сразу, как только Y пересекает порог финиша
+      if (p.y >= FINISH_Y) {
+        validateAndFinish();
+      }
+    }
+
+    function onUp(e) {
+      if (!state.isDrawing) return;
+      state.isDrawing = false;
+    }
+
+    // === ВАЛИДАЦИЯ ===
+    function validateAndFinish() {
+      state.finished = true;
+      state.isDrawing = false; // Останавливаем рисование
+      
+      let totalChecked = 0;
+      let withinTolerance = 0;
+      
+      // Пропускаем первые 15 точек (зона разгона/прицеливания)
+      for (let i = 15; i < state.points.length; i++) {
+        const p = state.points[i];
+        const ideal = getIdealX(p.y);
+        const deviation = Math.abs(p.x - ideal);
+        
+        if (deviation < CONFIG.tolerance) {
+          withinTolerance++;
+        }
+        totalChecked++;
+      }
+
+      // Успех, если >= 75% точек попали в допуск
+      const successRate = totalChecked > 0 ? (withinTolerance / totalChecked) : 0;
+      
+      if (successRate >= 0.75) {
+        statusEl.textContent = 'Отлично! Ритм и форма соблюдены ✅';
+        statusEl.style.color = '#10b981';
+      } else {
+        statusEl.textContent = 'Попробуйте точнее следовать пунктиру';
+        statusEl.style.color = '#ef4444';
+      }
+      
+      drawScene(); // Перерисовка для финального цвета линии
+    }
+
+    function resetGame() {
+      state.points = [];
+      state.isDrawing = false;
+      state.finished = false;
+      statusEl.textContent = 'Ведите линию сверху вниз по пунктиру';
+      statusEl.style.color = '#475569';
+      drawScene();
+    }
+
+    // Запуск
+    init();
+  </script>
+</body>
+</html>
