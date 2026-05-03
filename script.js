@@ -649,6 +649,11 @@ function getModuleExercises(moduleNum) {
           "right",
           "up"
         ]
+      },
+      {
+        title: "Ритмичная волна",
+        type: "rhythm-sinusoid",
+        instruction: "Проведи пальцем плавную волнистую линию сверху вниз, повторяя пунктирный образец"
       }
     ],
     7: [
@@ -1070,6 +1075,10 @@ function handleCanvasTouch(e) {
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
+  }
+  // Модуль 6: Ритмичная синусоида
+  else if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
+    startDrawingPath(e);
   } else {
     startDrawing(e);
   }
@@ -1112,6 +1121,10 @@ function handleCanvasClick(e) {
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
+  }
+  // Модуль 6: Ритмичная синусоида
+  else if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
+    startDrawingPath(e);
   } else {
     startDrawing(e);
   }
@@ -1294,6 +1307,12 @@ function draw(e) {
     return;
   }
 
+  // Модуль 6: Ритмичная синусоида
+  if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
+    drawRhythmSinusoidWithCheck(pos);
+    return;
+  }
+
   // Обычное рисование для других модулей
   ctx.lineTo(pos.x, pos.y);
   ctx.strokeStyle = "#667eea";
@@ -1356,6 +1375,8 @@ function stopDrawing(e) {
     checkPathFinish();
   }
 
+  // Модуль 6: Ритмичная синусоида - проверка уже выполняется в drawRhythmSinusoidWithCheck
+  
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
@@ -2528,6 +2549,11 @@ function drawExerciseTemplate(exercise) {
     case "grid-heart":
     case "grid-triangle":
       drawGridTemplate();
+      break;
+
+    // Модуль 6: Ритмичная синусоида
+    case "rhythm-sinusoid":
+      drawRhythmSinusoid();
       break;
 
     // Модуль 7: Запретный цвет
@@ -4368,6 +4394,175 @@ function drawMirrorTreeTemplate() {
 
 //==============================================
 // УЗОР ПО ТОЧКАМ
+//==============================================
+
+// ============================================
+// МОДУЛЬ 6: РИТМИЧНАЯ СИНУСОИДА
+// ============================================
+
+// Переменные для упражнения "Ритмичная волна"
+let sinusoidPath = []; // Точки траектории синусоиды
+let sinusoidUserPath = []; // Путь пользователя
+let sinusoidStartY = 0; // Начальная позиция Y
+let sinusoidEndY = 0; // Конечная позиция Y
+let sinusoidAmplitude = 0; // Амплитуда волны
+let sinusoidFrequency = 0; // Частота волны
+let sinusoidCenterX = 0; // Центр по X
+
+function drawRhythmSinusoid() {
+  // Параметры синусоиды
+  sinusoidCenterX = canvas.width / 2;
+  sinusoidStartY = canvas.height * 0.15; // 15% от верха
+  sinusoidEndY = canvas.height * 0.85; // 85% от верха (до низа)
+  sinusoidAmplitude = Math.min(60, canvas.width * 0.12); // Амплитуда
+  sinusoidFrequency = 0.015; // Частота волны
+  
+  sinusoidPath = [];
+  sinusoidUserPath = [];
+  
+  // Рисуем фон
+  ctx.fillStyle = "#f0fff0";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Рисуем две вертикальные линии (границы коридора)
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineWidth = 3;
+  const leftLineX = sinusoidCenterX - sinusoidAmplitude - 30;
+  const rightLineX = sinusoidCenterX + sinusoidAmplitude + 30;
+  
+  ctx.beginPath();
+  ctx.moveTo(leftLineX, sinusoidStartY - 20);
+  ctx.lineTo(leftLineX, sinusoidEndY + 20);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(rightLineX, sinusoidStartY - 20);
+  ctx.lineTo(rightLineX, sinusoidEndY + 20);
+  ctx.stroke();
+  
+  // Рисуем пунктирный образец синусоиды (небольшой отрезок в начале)
+  ctx.strokeStyle = "#2196f3";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 5]);
+  ctx.beginPath();
+  
+  const sampleLength = 80; // Длина образца в пикселях
+  for (let y = sinusoidStartY; y < sinusoidStartY + sampleLength; y += 2) {
+    const xOffset = Math.sin((y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
+    const x = sinusoidCenterX + xOffset;
+    if (y === sinusoidStartY) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+    sinusoidPath.push({ x: x, y: y });
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Продолжаем строить полный путь для проверки (но не рисуем его)
+  for (let y = sinusoidStartY + sampleLength; y <= sinusoidEndY; y += 2) {
+    const xOffset = Math.sin((y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
+    const x = sinusoidCenterX + xOffset;
+    sinusoidPath.push({ x: x, y: y });
+  }
+  
+  // Рисуем стартовую точку
+  ctx.fillStyle = "#4caf50";
+  ctx.beginPath();
+  ctx.arc(sinusoidCenterX, sinusoidStartY, 12, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Рисуем финишную зону
+  ctx.strokeStyle = "#ff9800";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(sinusoidCenterX, sinusoidEndY, 20, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+// Обработка рисования для ритмичной синусоиды
+function drawRhythmSinusoidWithCheck(pos) {
+  if (!isDrawing) return;
+  
+  sinusoidUserPath.push(pos);
+  
+  // Рисуем линию пользователя
+  ctx.lineTo(pos.x, pos.y);
+  ctx.strokeStyle = "#667eea";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke();
+  
+  // Проверяем выход за границы коридора
+  const tolerance = sinusoidAmplitude + 25; // Допуск beyond амплитуды
+  const distFromCenter = Math.abs(pos.x - sinusoidCenterX);
+  
+  if (distFromCenter > tolerance) {
+    showFeedback("⚠️ Выйди за границы коридора!", "error");
+    isDrawing = false;
+    ctx.closePath();
+    setTimeout(() => {
+      clearCanvas();
+      drawRhythmSinusoid();
+      sinusoidUserPath = [];
+    }, 1500);
+    return;
+  }
+  
+  // Проверяем достижение финиша
+  if (pos.y >= sinusoidEndY - 20) {
+    checkRhythmSinusoidFinish();
+  }
+}
+
+// Проверка завершения упражнения с ритмичной синусоидой
+function checkRhythmSinusoidFinish() {
+  isDrawing = false;
+  ctx.closePath();
+  
+  if (sinusoidUserPath.length < 50) {
+    showFeedback("⚠️ Слишком короткая линия!", "error");
+    setTimeout(() => {
+      clearCanvas();
+      drawRhythmSinusoid();
+      sinusoidUserPath = [];
+    }, 1500);
+    return;
+  }
+  
+  // Проверяем ритмичность - соответствие синусоиде
+  let deviations = 0;
+  const maxDeviation = sinusoidAmplitude * 0.6; // Максимальное отклонение от синусоиды
+  
+  for (let i = 0; i < sinusoidUserPath.length; i++) {
+    const point = sinusoidUserPath[i];
+    const expectedX = sinusoidCenterX + Math.sin((point.y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
+    const deviation = Math.abs(point.x - expectedX);
+    
+    if (deviation > maxDeviation) {
+      deviations++;
+    }
+  }
+  
+  const accuracy = 1 - (deviations / sinusoidUserPath.length);
+  
+  if (accuracy >= 0.7) {
+    exerciseCompleted = true;
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    showSuccess(`🎉 Отлично! Ты нарисовал ритмичную волну! Время: ${duration} сек.`);
+    updateStats(true, duration);
+  } else {
+    showFeedback("⚠️ Постарайся повторить волну точнее!", "error");
+    setTimeout(() => {
+      clearCanvas();
+      drawRhythmSinusoid();
+      sinusoidUserPath = [];
+    }, 1500);
+  }
+}
+
 //==============================================
 function drawPatternDots() {
   // Инициализируем координаты точек в пиксели
