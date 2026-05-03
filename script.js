@@ -70,7 +70,7 @@ let dotTolerance = 15; // Допуск для попадания в точку (
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
 
 // Версия файла для отладки
-const FILE_VERSION = "1.3.1b ритмичная волна"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.3.0b отладка найти и повторить"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -538,6 +538,11 @@ function getModuleExercises(moduleNum) {
     ],
     6: [
       {
+        title: "Волнистая дорожка",
+        type: "sine-corridor",
+        instruction: "Веди линию вниз между линиями, повторяя волну"
+      },
+      {
         title: "Квадратное окошко",
         type: "grid-square",
         instruction: "Проведи: 2 клетки вправо, 2 вниз, 2 влево, 2 вверх",
@@ -649,11 +654,6 @@ function getModuleExercises(moduleNum) {
           "right",
           "up"
         ]
-      },
-      {
-        title: "Ритмичная волна",
-        type: "rhythm-sinusoid",
-        instruction: "Проведи пальцем плавную волнистую линию сверху вниз, повторяя пунктирный образец"
       }
     ],
     7: [
@@ -862,20 +862,20 @@ function displayExercise(exercise) {
     }));
   }
 
-// Сброс для упражнения с распознаванием Найди и повтори
-if (exercise.type === "gesture-shape") {
-  currentExercise.shapes = generateGestureShapes(); 
-  // Случайно выбираем, какую именно фигуру нужно нарисовать
-  const targetIdx = Math.floor(Math.random() * 3);
-  currentExercise.targetShape = currentExercise.shapes[targetIdx].type;
-  
-  const shapeName = SHAPE_NAMES_RU[currentExercise.targetShape];
-  const emoji = SHAPE_EMOJI[currentExercise.targetShape];
+  // Сброс для упражнения с распознаванием Найди и повтори
+  if (exercise.type === "gesture-shape") {
+    currentExercise.shapes = generateGestureShapes();
+    // Случайно выбираем, какую именно фигуру нужно нарисовать
+    const targetIdx = Math.floor(Math.random() * 3);
+    currentExercise.targetShape = currentExercise.shapes[targetIdx].type;
 
-  // ✅ ИСПОЛЬЗУЕМ innerHTML для применения стилей
-  const instructionEl = document.getElementById("instruction");
-  instructionEl.innerHTML = `Найди <span style="font-size:1.4em; vertical-align:middle;">${emoji}</span> <span style="font-weight:bold; color:#06111a;">"${shapeName}"</span> и нарисуй его справа одним движением`;
-}
+    const shapeName = SHAPE_NAMES_RU[currentExercise.targetShape];
+    const emoji = SHAPE_EMOJI[currentExercise.targetShape];
+
+    // ✅ ИСПОЛЬЗУЕМ innerHTML для применения стилей
+    const instructionEl = document.getElementById("instruction");
+    instructionEl.innerHTML = `Найди <span style="font-size:1.4em; vertical-align:middle;">${emoji}</span> <span style="font-weight:bold; color:#06111a;">"${shapeName}"</span> и нарисуй его справа одним движением`;
+  }
 
   // Сброс переменных для pattern-dots (Узор по точкам)
   patternPoints = [];
@@ -1072,13 +1072,13 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "gesture-shape") {
     startDrawingGesture(e);
   }
+  //  Волнистая дорожка
+  else if (currentExercise && currentExercise.type === "sine-corridor") {
+    startDrawingSineCorridor(e);
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
-  }
-  // Модуль 6: Ритмичная синусоида
-  else if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
-    startDrawingPath(e);
   } else {
     startDrawing(e);
   }
@@ -1118,13 +1118,13 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "gesture-shape") {
     startDrawingGesture(e);
   }
+  //  Волнистая дорожка
+  else if (currentExercise && currentExercise.type === "sine-corridor") {
+    startDrawingSineCorridor(e);
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
-  }
-  // Модуль 6: Ритмичная синусоида
-  else if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
-    startDrawingPath(e);
   } else {
     startDrawing(e);
   }
@@ -1282,9 +1282,16 @@ function draw(e) {
     drawPatternDotsWithCheck(pos);
     return;
   }
+
   // Модуль: Распознавание фигур
   if (currentExercise && currentExercise.type === "gesture-shape") {
     drawGestureWithCheck(pos);
+    return;
+  }
+
+  //  Обработка волнистой дорожки
+  if (currentExercise && currentExercise.type === "sine-corridor") {
+    drawSineCorridorWithCheck(pos);
     return;
   }
   // Модуль 7: Запретный цвет
@@ -1292,7 +1299,11 @@ function draw(e) {
     drawForbiddenColorWithCheck(pos);
     return;
   }
-
+    // === НОВОЕ: Волнистая дорожка ===
+    else if (currentExercise && currentExercise.type === "sine-corridor") {
+        drawSineCorridorWithCheck(pos);
+        return;
+    }
   // Модуль 2, 3 и 4: Проверка границ дорожки
   if (
     currentExercise &&
@@ -1304,12 +1315,6 @@ function draw(e) {
       currentExercise.type === "combined-chain")
   ) {
     drawPathWithCheck(pos);
-    return;
-  }
-
-  // Модуль 6: Ритмичная синусоида
-  if (currentExercise && currentExercise.type === "rhythm-sinusoid") {
-    drawRhythmSinusoidWithCheck(pos);
     return;
   }
 
@@ -1375,8 +1380,15 @@ function stopDrawing(e) {
     checkPathFinish();
   }
 
-  // Модуль 6: Ритмичная синусоида - проверка уже выполняется в drawRhythmSinusoidWithCheck
-  
+	// === ПРОВЕРКА ФИНИША ДЛЯ ВОЛНИСТОЙ ДОРОЖКИ ===
+if (currentExercise && currentExercise.type === "sine-corridor") {
+    const lastPos = userPath[userPath.length - 1];
+    if (lastPos && lastPos.y >= currentExercise.finishY) {
+        completeSineCorridor();
+    }
+    return;
+}
+
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
 }
@@ -2551,9 +2563,8 @@ function drawExerciseTemplate(exercise) {
       drawGridTemplate();
       break;
 
-    // Модуль 6: Ритмичная синусоида
-    case "rhythm-sinusoid":
-      drawRhythmSinusoid();
+    case "sine-corridor":
+      drawSineCorridorTemplate();
       break;
 
     // Модуль 7: Запретный цвет
@@ -4395,175 +4406,6 @@ function drawMirrorTreeTemplate() {
 //==============================================
 // УЗОР ПО ТОЧКАМ
 //==============================================
-
-// ============================================
-// МОДУЛЬ 6: РИТМИЧНАЯ СИНУСОИДА
-// ============================================
-
-// Переменные для упражнения "Ритмичная волна"
-let sinusoidPath = []; // Точки траектории синусоиды
-let sinusoidUserPath = []; // Путь пользователя
-let sinusoidStartY = 0; // Начальная позиция Y
-let sinusoidEndY = 0; // Конечная позиция Y
-let sinusoidAmplitude = 0; // Амплитуда волны
-let sinusoidFrequency = 0; // Частота волны
-let sinusoidCenterX = 0; // Центр по X
-
-function drawRhythmSinusoid() {
-  // Параметры синусоиды
-  sinusoidCenterX = canvas.width / 2;
-  sinusoidStartY = canvas.height * 0.15; // 15% от верха
-  sinusoidEndY = canvas.height * 0.85; // 85% от верха (до низа)
-  sinusoidAmplitude = Math.min(60, canvas.width * 0.12); // Амплитуда
-  sinusoidFrequency = 0.015; // Частота волны
-  
-  sinusoidPath = [];
-  sinusoidUserPath = [];
-  
-  // Рисуем фон
-  ctx.fillStyle = "#f0fff0";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Рисуем две вертикальные линии (границы коридора)
-  ctx.strokeStyle = "#4caf50";
-  ctx.lineWidth = 3;
-  const leftLineX = sinusoidCenterX - sinusoidAmplitude - 30;
-  const rightLineX = sinusoidCenterX + sinusoidAmplitude + 30;
-  
-  ctx.beginPath();
-  ctx.moveTo(leftLineX, sinusoidStartY - 20);
-  ctx.lineTo(leftLineX, sinusoidEndY + 20);
-  ctx.stroke();
-  
-  ctx.beginPath();
-  ctx.moveTo(rightLineX, sinusoidStartY - 20);
-  ctx.lineTo(rightLineX, sinusoidEndY + 20);
-  ctx.stroke();
-  
-  // Рисуем пунктирный образец синусоиды (небольшой отрезок в начале)
-  ctx.strokeStyle = "#2196f3";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([10, 5]);
-  ctx.beginPath();
-  
-  const sampleLength = 80; // Длина образца в пикселях
-  for (let y = sinusoidStartY; y < sinusoidStartY + sampleLength; y += 2) {
-    const xOffset = Math.sin((y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
-    const x = sinusoidCenterX + xOffset;
-    if (y === sinusoidStartY) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-    sinusoidPath.push({ x: x, y: y });
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
-  
-  // Продолжаем строить полный путь для проверки (но не рисуем его)
-  for (let y = sinusoidStartY + sampleLength; y <= sinusoidEndY; y += 2) {
-    const xOffset = Math.sin((y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
-    const x = sinusoidCenterX + xOffset;
-    sinusoidPath.push({ x: x, y: y });
-  }
-  
-  // Рисуем стартовую точку
-  ctx.fillStyle = "#4caf50";
-  ctx.beginPath();
-  ctx.arc(sinusoidCenterX, sinusoidStartY, 12, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Рисуем финишную зону
-  ctx.strokeStyle = "#ff9800";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(sinusoidCenterX, sinusoidEndY, 20, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
-// Обработка рисования для ритмичной синусоиды
-function drawRhythmSinusoidWithCheck(pos) {
-  if (!isDrawing) return;
-  
-  sinusoidUserPath.push(pos);
-  
-  // Рисуем линию пользователя
-  ctx.lineTo(pos.x, pos.y);
-  ctx.strokeStyle = "#667eea";
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.stroke();
-  
-  // Проверяем выход за границы коридора
-  const tolerance = sinusoidAmplitude + 25; // Допуск beyond амплитуды
-  const distFromCenter = Math.abs(pos.x - sinusoidCenterX);
-  
-  if (distFromCenter > tolerance) {
-    showFeedback("⚠️ Выйди за границы коридора!", "error");
-    isDrawing = false;
-    ctx.closePath();
-    setTimeout(() => {
-      clearCanvas();
-      drawRhythmSinusoid();
-      sinusoidUserPath = [];
-    }, 1500);
-    return;
-  }
-  
-  // Проверяем достижение финиша
-  if (pos.y >= sinusoidEndY - 20) {
-    checkRhythmSinusoidFinish();
-  }
-}
-
-// Проверка завершения упражнения с ритмичной синусоидой
-function checkRhythmSinusoidFinish() {
-  isDrawing = false;
-  ctx.closePath();
-  
-  if (sinusoidUserPath.length < 50) {
-    showFeedback("⚠️ Слишком короткая линия!", "error");
-    setTimeout(() => {
-      clearCanvas();
-      drawRhythmSinusoid();
-      sinusoidUserPath = [];
-    }, 1500);
-    return;
-  }
-  
-  // Проверяем ритмичность - соответствие синусоиде
-  let deviations = 0;
-  const maxDeviation = sinusoidAmplitude * 0.6; // Максимальное отклонение от синусоиды
-  
-  for (let i = 0; i < sinusoidUserPath.length; i++) {
-    const point = sinusoidUserPath[i];
-    const expectedX = sinusoidCenterX + Math.sin((point.y - sinusoidStartY) * sinusoidFrequency) * sinusoidAmplitude;
-    const deviation = Math.abs(point.x - expectedX);
-    
-    if (deviation > maxDeviation) {
-      deviations++;
-    }
-  }
-  
-  const accuracy = 1 - (deviations / sinusoidUserPath.length);
-  
-  if (accuracy >= 0.7) {
-    exerciseCompleted = true;
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    showSuccess(`🎉 Отлично! Ты нарисовал ритмичную волну! Время: ${duration} сек.`);
-    updateStats(true, duration);
-  } else {
-    showFeedback("⚠️ Постарайся повторить волну точнее!", "error");
-    setTimeout(() => {
-      clearCanvas();
-      drawRhythmSinusoid();
-      sinusoidUserPath = [];
-    }, 1500);
-  }
-}
-
-//==============================================
 function drawPatternDots() {
   // Инициализируем координаты точек в пиксели
   const sideWidth = canvas.width / 2;
@@ -5992,7 +5834,14 @@ function generateGestureShape() {
 
 // Генерация трёх перекрывающихся фигур
 function generateGestureShapes() {
-  const colors = ["#FF5252", "#4FC3F7", "#69F0AE", "#FFD740", "#BA68C8", "#FF8A65"];
+  const colors = [
+    "#FF5252",
+    "#4FC3F7",
+    "#69F0AE",
+    "#FFD740",
+    "#BA68C8",
+    "#FF8A65"
+  ];
   // Перемешиваем цвета (гарантия 3 разных)
   for (let i = colors.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -6015,8 +5864,8 @@ function generateGestureShapes() {
   const clusterCy = halfH * 0.5;
 
   // ✅ УВЕЛИЧЕННЫЙ РАЗБРОС (акцент на вертикаль)
-  const spreadX = halfW * 0.10;  // Горизонтальный разброс
-  const spreadY = halfH * 0.16;  // Вертикальный разброс (увеличен)
+  const spreadX = halfW * 0.1; // Горизонтальный разброс
+  const spreadY = halfH * 0.16; // Вертикальный разброс (увеличен)
 
   // Размер подбирается так, чтобы при таком разбросе фигуры ВСЕГДА накрывали центр кластера
   // и гарантированно пересекались между собой
@@ -6034,7 +5883,6 @@ function generateGestureShapes() {
   }
   return shapes;
 }
-
 
 // Рисование одной фигуры (для шаблона с тремя фигурами)
 function drawSingleShape(shape) {
@@ -6595,6 +6443,184 @@ const SHAPE_NAMES_RU = {
 };
 
 //	================ конец найди и повтори =====================
+
+// ============================================
+// УПРАЖНЕНИЕ: Волнистая дорожка (sine-corridor)
+// ============================================
+
+function startDrawingSineCorridor(e) {
+    e.preventDefault();
+    if (exerciseCompleted) return;
+    const pos = getPosition(e);
+    
+    // Проверка зоны старта (сверху, между линиями)
+    if (pos.y > 100) return;
+    if (!currentExercise.corridorLeftX || !currentExercise.corridorRightX) return;
+    if (pos.x < currentExercise.corridorLeftX || pos.x > currentExercise.corridorRightX) return;
+
+    isDrawing = true;
+    userPath = [pos];
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+}
+
+function drawSineCorridorTemplate() {
+    // 1. ПАРАМЕТРЫ СТРОКИ (узкой)
+    const corridorWidth = canvas.width * 0.12; // 12% ширины экрана
+    const startX = (canvas.width - corridorWidth) / 2;
+    const endX = startX + corridorWidth;
+    
+    currentExercise.corridorLeftX = startX;
+    currentExercise.corridorRightX = endX;
+    currentExercise.finishY = canvas.height - 50;
+    
+    // === ВАЖНО: Сохраняем параметры для валидации ===
+    currentExercise.sineStartY = 50;
+    currentExercise.sineFrequency = 0.065;
+    currentExercise.sineAmplitude = corridorWidth * 1.3; // > tolerance (25)
+    currentExercise.sineCenterX = (startX + endX) / 2;
+    // ============================================
+
+    pathPoints = [];
+    const startY = 50;
+    const frequency = 0.065;
+    const amplitude = corridorWidth * 1.3;
+    const centerX = (startX + endX) / 2;
+    
+    for (let y = startY; y <= currentExercise.finishY; y += 5) {
+        const x = centerX + Math.sin((y - startY) * frequency) * amplitude;
+        pathPoints.push({ x: x, y: y });
+    }
+
+    // Отрисовка границ
+    ctx.strokeStyle = "#a0a0a0";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height);
+    ctx.moveTo(endX, 0); ctx.lineTo(endX, canvas.height);
+    ctx.stroke();
+
+    // Отрисовка пунктира (2 петли)
+    ctx.strokeStyle = "#667eea";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 8]);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    
+    if (pathPoints.length > 0) {
+        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+        const twoCyclesY = startY + (4 * Math.PI) / frequency;
+        for (let i = 1; i < pathPoints.length; i++) {
+            if (pathPoints[i].y > twoCyclesY) break;
+            ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+        }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Маркеры
+    ctx.fillStyle = "#4caf50";
+    ctx.beginPath(); 
+    ctx.arc(centerX, startY, 10, 0, Math.PI * 2); 
+    ctx.fill();
+    
+    ctx.fillStyle = "rgba(255, 152, 0, 0.3)";
+    ctx.beginPath(); 
+    ctx.arc(centerX, currentExercise.finishY, 20, 0, Math.PI * 2); 
+    ctx.fill();
+    ctx.strokeStyle = "#ff9800";
+    ctx.beginPath(); 
+    ctx.arc(centerX, currentExercise.finishY, 15, 0, Math.PI * 2); 
+    ctx.stroke();
+}
+
+function drawSineCorridorWithCheck(pos) {
+    if (!isDrawing) return;
+    
+    // === ПРОВЕРКА ПО ФОРМУЛЕ СИНУСОИДЫ ===
+    const startY = currentExercise.sineStartY;
+    const freq = currentExercise.sineFrequency;
+    const amp = currentExercise.sineAmplitude;
+    const centerX = currentExercise.sineCenterX;
+    
+    // Вычисляем идеальную позицию по формуле
+    const idealX = centerX + Math.sin((pos.y - startY) * freq) * amp;
+    const deviation = Math.abs(pos.x - idealX);
+    const tolerance = 25; // Допуск в пикселях
+
+    if (deviation > tolerance) {
+        // Ошибка: ушли слишком далеко от траектории
+        isDrawing = false;
+        ctx.strokeStyle = "#ff5252";
+        ctx.lineWidth = 4;
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        ctx.closePath();
+        
+        showFeedback("⚠️ Соблюдай ритм волны!", "error");
+        vibrateDevice();
+        
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userPath = [];
+        }, 1000);
+        return;
+    }
+
+    // Успех: рисуем зелёной линией
+    ctx.strokeStyle = "#4caf50";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    userPath.push(pos);
+}
+
+
+
+
+function completeSineCorridor() {
+    // === ФИНАЛЬНАЯ ПРОВЕРКА КАЧЕСТВА ===
+    let totalChecked = 0;
+    let withinTolerance = 0;
+    const tolerance = 25;
+    
+    const startY = currentExercise.sineStartY;
+    const freq = currentExercise.sineFrequency;
+    const amp = currentExercise.sineAmplitude;
+    const centerX = currentExercise.sineCenterX;
+    
+    // Проверяем точки (пропускаем первые 15 для "разгона")
+    for (let i = 15; i < userPath.length; i++) {
+        const p = userPath[i];
+        const idealX = centerX + Math.sin((p.y - startY) * freq) * amp;
+        const deviation = Math.abs(p.x - idealX);
+        
+        if (deviation < tolerance) {
+            withinTolerance++;
+        }
+        totalChecked++;
+    }
+    
+    const successRate = totalChecked > 0 ? (withinTolerance / totalChecked) : 0;
+    
+    if (successRate >= 0.60) {
+        exerciseCompleted = true;
+        isDrawing = false;
+        showFeedback("🎉 Отлично! Ты справился!", "success");
+        document.getElementById("next-level-btn").classList.remove("hidden");
+        setTimeout(() => nextExercise(), 1500);
+    } else {
+        isDrawing = false;
+        showFeedback("⚠️ Попробуй еще раз, соблюдай волну!", "error");
+        setTimeout(() => {
+            clearCanvas();
+            drawExerciseTemplate(currentExercise);
+            userPath = [];
+        }, 1500);
+    }
+}
 
 // В глобальной области (после всех функций)
 window.appVersion = FILE_VERSION;
