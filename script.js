@@ -4551,8 +4551,13 @@ function checkRhythmSinusoidFinish() {
   if (accuracy >= 0.7) {
     exerciseCompleted = true;
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    showSuccess(`🎉 Отлично! Ты нарисовал ритмичную волну! Время: ${duration} сек.`);
+    showFeedback(`🎉 Отлично! Ты нарисовал ритмичную волну! Время: ${duration} сек.`, "success");
     updateStats(true, duration);
+    
+    // Автоматический переход к следующему упражнению
+    setTimeout(() => {
+      nextExercise();
+    }, 2000);
   } else {
     showFeedback("⚠️ Постарайся повторить волну точнее!", "error");
     setTimeout(() => {
