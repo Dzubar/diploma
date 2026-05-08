@@ -58,6 +58,12 @@ let pointTolerance = 25; // Допуск для попадания в контр
 // Переменные для модуля "Найди и повтори" ($1 Recognizer)
 let userFilterPath = [];
 
+// Переменные для упражнения "Светофор"
+let trafficLightState = "green"; // "green" или "red"
+let trafficLightTimer = null;
+let trafficViolations = 0; // Количество нарушений (движение на красный)
+let lastTrafficCheckPos = null;
+
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
 let patternReference = []; // Эталонный узор (массив пар индексов)
@@ -68,9 +74,11 @@ let dotGridSize = 5; // Размер сетки (5x5)
 let dotRadius = 8; // Радиус точки в пикселях
 let dotTolerance = 15; // Допуск для попадания в точку (пиксели)
 let patternStartPoint = null; // Индекс стартовой точки (выделяется синим)
+let startZoneReached = false; // Фиксация прохождения стартовой зоны
+let redStartTime = 0; // Фиксация времени включения красного для задержки реакции
 
 // Версия файла для отладки
-const FILE_VERSION = "1.3.0b отладка найти и повторить"; // Изменяйте при каждом обновлении
+const FILE_VERSION = "1.5.0b Добавлен Светофор"; // Изменяйте при каждом обновлении
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -658,6 +666,12 @@ function getModuleExercises(moduleNum) {
     ],
     7: [
       {
+        title: "Светофор",
+        type: "traffic-light",
+        instruction:
+          "Веди линию только когда зелёный свет! Когда красный — остановись"
+      },
+      {
         title: "Найди ошибку",
         type: "find-error",
         instruction: "Найди неправильный элемент"
@@ -820,6 +834,17 @@ function displayExercise(exercise) {
 
   exerciseCompleted = false;
   targetZone = null;
+
+  // Очищаем таймер светофора
+  if (trafficLightTimer) {
+    clearTimeout(trafficLightTimer);
+    trafficLightTimer = null;
+  }
+  trafficLightState = "green";
+  trafficViolations = 0;
+  lastTrafficCheckPos = null;
+  startZoneReached = false;
+  redStartTime = 0;
 
   // Сброс переменных для модуля 2
   pathPoints = [];
@@ -1076,6 +1101,10 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "sine-corridor") {
     startDrawingSineCorridor(e);
   }
+  // Модуль 7: Светофор
+  else if (currentExercise && currentExercise.type === "traffic-light") {
+    startDrawingTrafficLight(e);
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1121,6 +1150,10 @@ function handleCanvasClick(e) {
   //  Волнистая дорожка
   else if (currentExercise && currentExercise.type === "sine-corridor") {
     startDrawingSineCorridor(e);
+  }
+  // Модуль 7: Светофор
+  else if (currentExercise && currentExercise.type === "traffic-light") {
+    startDrawingTrafficLight(e);
   }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1294,16 +1327,17 @@ function draw(e) {
     drawSineCorridorWithCheck(pos);
     return;
   }
+
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     drawForbiddenColorWithCheck(pos);
     return;
   }
-    // === НОВОЕ: Волнистая дорожка ===
-    else if (currentExercise && currentExercise.type === "sine-corridor") {
-        drawSineCorridorWithCheck(pos);
-        return;
-    }
+  // === НОВОЕ: Волнистая дорожка ===
+  else if (currentExercise && currentExercise.type === "sine-corridor") {
+    drawSineCorridorWithCheck(pos);
+    return;
+  }
   // Модуль 2, 3 и 4: Проверка границ дорожки
   if (
     currentExercise &&
@@ -1315,6 +1349,30 @@ function draw(e) {
       currentExercise.type === "combined-chain")
   ) {
     drawPathWithCheck(pos);
+    return;
+  }
+
+  // Для светофора — рисуем линию только если зелёный
+  if (currentExercise && currentExercise.type === "traffic-light") {
+    // Мгновенная проверка финиша при движении
+    if (isDrawing && !exerciseCompleted) {
+      const lastPos = userPath[userPath.length - 1];
+      if (lastPos && lastPos.y <= 60) {
+        completeTrafficLight();
+        return;
+      }
+    }
+
+    if (trafficLightState === "green") {
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = "#4fc3f7";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      userPath.push(pos);
+    } else {
+      checkTrafficLightViolation(pos);
+    }
     return;
   }
 
@@ -1360,6 +1418,7 @@ function stopDrawing(e) {
     }
     return;
   }
+
   // Модуль 7: Запретный цвет
   if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
@@ -1380,14 +1439,24 @@ function stopDrawing(e) {
     checkPathFinish();
   }
 
-	// === ПРОВЕРКА ФИНИША ДЛЯ ВОЛНИСТОЙ ДОРОЖКИ ===
-if (currentExercise && currentExercise.type === "sine-corridor") {
+  // === ПРОВЕРКА ФИНИША ДЛЯ ВОЛНИСТОЙ ДОРОЖКИ ===
+  if (currentExercise && currentExercise.type === "sine-corridor") {
     const lastPos = userPath[userPath.length - 1];
     if (lastPos && lastPos.y >= currentExercise.finishY) {
-        completeSineCorridor();
+      completeSineCorridor();
     }
     return;
-}
+  }
+
+  // Модуль 7: Светофор — проверка финиша
+  if (currentExercise && currentExercise.type === "traffic-light") {
+    const lastPos = userPath[userPath.length - 1];
+    if (lastPos && lastPos.y <= 60) {
+      // Финиш вверху!
+      completeTrafficLight();
+    }
+    return;
+  }
 
   // Модуль 5: Активация сегментов происходит в реальном времени в drawMirrorTreeWithCheck()
   // Здесь больше ничего не нужно делать
@@ -2567,6 +2636,10 @@ function drawExerciseTemplate(exercise) {
       drawSineCorridorTemplate();
       break;
 
+    // Модуль 7: Светофор
+    case "traffic-light":
+      drawTrafficLightTemplate();
+      break;
     // Модуль 7: Запретный цвет
     case "forbidden-color":
       drawForbiddenColorTemplate();
@@ -5025,6 +5098,131 @@ function drawForbiddenColorTemplate() {
   }
 }
 
+function drawTrafficLightTemplate() {
+  if (!trafficLightTimer && !exerciseCompleted) startTrafficLightCycle(); // Автозапуск
+  const roadWidth = canvas.width * 0.6;
+  const roadX = (canvas.width - roadWidth) / 2;
+  ctx.fillStyle = "#e0e0e0";
+  ctx.fillRect(roadX, 0, roadWidth, canvas.height);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 4;
+  ctx.setLineDash([20, 15]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "#bdbdbd";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(roadX, 0);
+  ctx.lineTo(roadX, canvas.height);
+  ctx.moveTo(roadX + roadWidth, 0);
+  ctx.lineTo(roadX + roadWidth, canvas.height);
+  ctx.stroke();
+
+  const indX = canvas.width / 2,
+    indY = 50,
+    indR = 60;
+  ctx.fillStyle = "#424242";
+  ctx.beginPath();
+  ctx.arc(indX, indY, indR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = trafficLightState === "green" ? "#4caf50" : "#f44336";
+  ctx.beginPath();
+  ctx.arc(indX, indY, indR - 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 16px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    trafficLightState === "green" ? "МОЖНО" : "СТОП",
+    indX,
+    indY + 50
+  );
+
+  ctx.fillStyle = "#4caf50";
+  ctx.beginPath();
+  ctx.arc(canvas.width / 2, canvas.height - 40, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#333";
+  ctx.font = "bold 14px Arial";
+  ctx.fillText("СТАРТ", canvas.width / 2, canvas.height - 15);
+  ctx.strokeStyle = "#ff9800";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(canvas.width / 2, 40, 15, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function startTrafficLightCycle() {
+  if (trafficLightTimer) clearTimeout(trafficLightTimer);
+  const duration = 1500 + Math.random() * 1500;
+  trafficLightTimer = setTimeout(() => {
+    if (exerciseCompleted) return;
+    trafficLightState = trafficLightState === "green" ? "red" : "green";
+    if (trafficLightState === "red") {
+      redStartTime = Date.now(); // Запоминаем момент смены сигнала
+    }
+    if (canvas && ctx) {
+      const savedPath = [...userPath];
+      clearCanvas();
+      if (savedPath.length > 0) {
+        ctx.strokeStyle = "#4fc3f7";
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(savedPath[0].x, savedPath[0].y);
+        for (let i = 1; i < savedPath.length; i++)
+          ctx.lineTo(savedPath[i].x, savedPath[i].y);
+        ctx.stroke();
+      }
+    }
+    startTrafficLightCycle();
+  }, duration);
+}
+
+function checkTrafficLightViolation(pos) {
+  if (trafficLightState === "red" && isDrawing) {
+    // Даем 700мс на осознание и остановку
+    if (Date.now() - redStartTime < 700) return;
+
+    trafficViolations++;
+    const feedback = document.getElementById("feedback");
+    feedback.textContent = `⚠️ Нарушение! (${trafficViolations}/3)`;
+    feedback.className = "feedback error";
+    feedback.classList.remove("hidden");
+    vibrateDevice();
+
+    ctx.strokeStyle = "#f44336";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pos.x - 10, pos.y - 10);
+    ctx.lineTo(pos.x + 10, pos.y + 10);
+    ctx.moveTo(pos.x + 10, pos.y - 10);
+    ctx.lineTo(pos.x - 10, pos.y + 10);
+    ctx.stroke();
+
+    if (trafficViolations >= 3) {
+      isDrawing = false;
+      exerciseCompleted = false;
+      feedback.textContent = "❌ Много нарушений! Попробуй ещё раз.";
+      feedback.className = "feedback error";
+      feedback.classList.remove("hidden");
+
+      setTimeout(() => {
+        clearCanvas();
+        drawExerciseTemplate(currentExercise);
+        userPath = [];
+        trafficViolations = 0;
+        startZoneReached = false;
+        feedback.classList.add("hidden");
+      }, 1500);
+    }
+    setTimeout(() => feedback.classList.add("hidden"), 2000);
+  }
+}
+
 // Обработка касания для этого упражнения
 function handleForbiddenColorTouch(e) {
   e.preventDefault();
@@ -5082,7 +5280,6 @@ function checkForbiddenPath(pos) {
 }
 
 // Начало рисования для "Запретного цвета"
-// Начало рисования для "Запретного цвета"
 function startDrawingForbiddenColor(e) {
   e.preventDefault();
   if (exerciseCompleted) return;
@@ -5117,6 +5314,23 @@ function startDrawingForbiddenColor(e) {
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+}
+
+function startDrawingTrafficLight(e) {
+  e.preventDefault();
+  if (exerciseCompleted) return;
+  const pos = getPosition(e);
+  if (pos.y < canvas.height - 100) return;
+  startZoneReached = true;
+  isDrawing = true;
+  userPath = [pos];
+  lastTrafficCheckPos = pos;
+  trafficViolations = 0;
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  ctx.strokeStyle = "#4fc3f7";
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
 }
 
 // Рисование с проверкой на запретный цвет
@@ -6449,177 +6663,214 @@ const SHAPE_NAMES_RU = {
 // ============================================
 
 function startDrawingSineCorridor(e) {
-    e.preventDefault();
-    if (exerciseCompleted) return;
-    const pos = getPosition(e);
-    
-    // Проверка зоны старта (сверху, между линиями)
-    if (pos.y > 100) return;
-    if (!currentExercise.corridorLeftX || !currentExercise.corridorRightX) return;
-    if (pos.x < currentExercise.corridorLeftX || pos.x > currentExercise.corridorRightX) return;
+  e.preventDefault();
+  if (exerciseCompleted) return;
+  const pos = getPosition(e);
 
-    isDrawing = true;
-    userPath = [pos];
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+  // Проверка зоны старта (сверху, между линиями)
+  if (pos.y > 100) return;
+  if (!currentExercise.corridorLeftX || !currentExercise.corridorRightX) return;
+  if (
+    pos.x < currentExercise.corridorLeftX ||
+    pos.x > currentExercise.corridorRightX
+  )
+    return;
+
+  isDrawing = true;
+  userPath = [pos];
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
 }
 
 function drawSineCorridorTemplate() {
-    // 1. ПАРАМЕТРЫ СТРОКИ (узкой)
-    const corridorWidth = canvas.width * 0.12; // 12% ширины экрана
-    const startX = (canvas.width - corridorWidth) / 2;
-    const endX = startX + corridorWidth;
-    
-    currentExercise.corridorLeftX = startX;
-    currentExercise.corridorRightX = endX;
-    currentExercise.finishY = canvas.height - 50;
-    
-    // === ВАЖНО: Сохраняем параметры для валидации ===
-    currentExercise.sineStartY = 50;
-    currentExercise.sineFrequency = 0.065;
-    currentExercise.sineAmplitude = corridorWidth * 1.3; // > tolerance (25)
-    currentExercise.sineCenterX = (startX + endX) / 2;
-    // ============================================
+  // 1. ПАРАМЕТРЫ СТРОКИ (узкой)
+  const corridorWidth = canvas.width * 0.12; // 12% ширины экрана
+  const startX = (canvas.width - corridorWidth) / 2;
+  const endX = startX + corridorWidth;
 
-    pathPoints = [];
-    const startY = 50;
-    const frequency = 0.065;
-    const amplitude = corridorWidth * 1.3;
-    const centerX = (startX + endX) / 2;
-    
-    for (let y = startY; y <= currentExercise.finishY; y += 5) {
-        const x = centerX + Math.sin((y - startY) * frequency) * amplitude;
-        pathPoints.push({ x: x, y: y });
+  currentExercise.corridorLeftX = startX;
+  currentExercise.corridorRightX = endX;
+  currentExercise.finishY = canvas.height - 50;
+
+  // === ВАЖНО: Сохраняем параметры для валидации ===
+  currentExercise.sineStartY = 50;
+  currentExercise.sineFrequency = 0.065;
+  currentExercise.sineAmplitude = corridorWidth * 1.3; // > tolerance (25)
+  currentExercise.sineCenterX = (startX + endX) / 2;
+  // ============================================
+
+  pathPoints = [];
+  const startY = 50;
+  const frequency = 0.065;
+  const amplitude = corridorWidth * 1.3;
+  const centerX = (startX + endX) / 2;
+
+  for (let y = startY; y <= currentExercise.finishY; y += 5) {
+    const x = centerX + Math.sin((y - startY) * frequency) * amplitude;
+    pathPoints.push({ x: x, y: y });
+  }
+
+  // Отрисовка границ
+  ctx.strokeStyle = "#a0a0a0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(startX, 0);
+  ctx.lineTo(startX, canvas.height);
+  ctx.moveTo(endX, 0);
+  ctx.lineTo(endX, canvas.height);
+  ctx.stroke();
+
+  // Отрисовка пунктира (2 петли)
+  ctx.strokeStyle = "#667eea";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+
+  if (pathPoints.length > 0) {
+    ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+    const twoCyclesY = startY + (4 * Math.PI) / frequency;
+    for (let i = 1; i < pathPoints.length; i++) {
+      if (pathPoints[i].y > twoCyclesY) break;
+      ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
     }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
 
-    // Отрисовка границ
-    ctx.strokeStyle = "#a0a0a0";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height);
-    ctx.moveTo(endX, 0); ctx.lineTo(endX, canvas.height);
-    ctx.stroke();
+  // Маркеры
+  ctx.fillStyle = "#4caf50";
+  ctx.beginPath();
+  ctx.arc(centerX, startY, 10, 0, Math.PI * 2);
+  ctx.fill();
 
-    // Отрисовка пунктира (2 петли)
-    ctx.strokeStyle = "#667eea";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([10, 8]);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    
-    if (pathPoints.length > 0) {
-        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
-        const twoCyclesY = startY + (4 * Math.PI) / frequency;
-        for (let i = 1; i < pathPoints.length; i++) {
-            if (pathPoints[i].y > twoCyclesY) break;
-            ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
-        }
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Маркеры
-    ctx.fillStyle = "#4caf50";
-    ctx.beginPath(); 
-    ctx.arc(centerX, startY, 10, 0, Math.PI * 2); 
-    ctx.fill();
-    
-    ctx.fillStyle = "rgba(255, 152, 0, 0.3)";
-    ctx.beginPath(); 
-    ctx.arc(centerX, currentExercise.finishY, 20, 0, Math.PI * 2); 
-    ctx.fill();
-    ctx.strokeStyle = "#ff9800";
-    ctx.beginPath(); 
-    ctx.arc(centerX, currentExercise.finishY, 15, 0, Math.PI * 2); 
-    ctx.stroke();
+  ctx.fillStyle = "rgba(255, 152, 0, 0.3)";
+  ctx.beginPath();
+  ctx.arc(centerX, currentExercise.finishY, 20, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ff9800";
+  ctx.beginPath();
+  ctx.arc(centerX, currentExercise.finishY, 15, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function drawSineCorridorWithCheck(pos) {
-    if (!isDrawing) return;
-    
-    // === ПРОВЕРКА ПО ФОРМУЛЕ СИНУСОИДЫ ===
-    const startY = currentExercise.sineStartY;
-    const freq = currentExercise.sineFrequency;
-    const amp = currentExercise.sineAmplitude;
-    const centerX = currentExercise.sineCenterX;
-    
-    // Вычисляем идеальную позицию по формуле
-    const idealX = centerX + Math.sin((pos.y - startY) * freq) * amp;
-    const deviation = Math.abs(pos.x - idealX);
-    const tolerance = 25; // Допуск в пикселях
+  if (!isDrawing) return;
 
-    if (deviation > tolerance) {
-        // Ошибка: ушли слишком далеко от траектории
-        isDrawing = false;
-        ctx.strokeStyle = "#ff5252";
-        ctx.lineWidth = 4;
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        ctx.closePath();
-        
-        showFeedback("⚠️ Соблюдай ритм волны!", "error");
-        vibrateDevice();
-        
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userPath = [];
-        }, 1000);
-        return;
-    }
+  // === ПРОВЕРКА ПО ФОРМУЛЕ СИНУСОИДЫ ===
+  const startY = currentExercise.sineStartY;
+  const freq = currentExercise.sineFrequency;
+  const amp = currentExercise.sineAmplitude;
+  const centerX = currentExercise.sineCenterX;
 
-    // Успех: рисуем зелёной линией
-    ctx.strokeStyle = "#4caf50";
+  // Вычисляем идеальную позицию по формуле
+  const idealX = centerX + Math.sin((pos.y - startY) * freq) * amp;
+  const deviation = Math.abs(pos.x - idealX);
+  const tolerance = 25; // Допуск в пикселях
+
+  if (deviation > tolerance) {
+    // Ошибка: ушли слишком далеко от траектории
+    isDrawing = false;
+    ctx.strokeStyle = "#ff5252";
     ctx.lineWidth = 4;
-    ctx.lineCap = "round";
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
-    userPath.push(pos);
+    ctx.closePath();
+
+    showFeedback("⚠️ Соблюдай ритм волны!", "error");
+    vibrateDevice();
+
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userPath = [];
+    }, 1000);
+    return;
+  }
+
+  // Успех: рисуем зелёной линией
+  ctx.strokeStyle = "#4caf50";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  userPath.push(pos);
 }
 
-
-
-
 function completeSineCorridor() {
-    // === ФИНАЛЬНАЯ ПРОВЕРКА КАЧЕСТВА ===
-    let totalChecked = 0;
-    let withinTolerance = 0;
-    const tolerance = 25;
-    
-    const startY = currentExercise.sineStartY;
-    const freq = currentExercise.sineFrequency;
-    const amp = currentExercise.sineAmplitude;
-    const centerX = currentExercise.sineCenterX;
-    
-    // Проверяем точки (пропускаем первые 15 для "разгона")
-    for (let i = 15; i < userPath.length; i++) {
-        const p = userPath[i];
-        const idealX = centerX + Math.sin((p.y - startY) * freq) * amp;
-        const deviation = Math.abs(p.x - idealX);
-        
-        if (deviation < tolerance) {
-            withinTolerance++;
-        }
-        totalChecked++;
+  // === ФИНАЛЬНАЯ ПРОВЕРКА КАЧЕСТВА ===
+  let totalChecked = 0;
+  let withinTolerance = 0;
+  const tolerance = 25;
+
+  const startY = currentExercise.sineStartY;
+  const freq = currentExercise.sineFrequency;
+  const amp = currentExercise.sineAmplitude;
+  const centerX = currentExercise.sineCenterX;
+
+  // Проверяем точки (пропускаем первые 15 для "разгона")
+  for (let i = 15; i < userPath.length; i++) {
+    const p = userPath[i];
+    const idealX = centerX + Math.sin((p.y - startY) * freq) * amp;
+    const deviation = Math.abs(p.x - idealX);
+
+    if (deviation < tolerance) {
+      withinTolerance++;
     }
-    
-    const successRate = totalChecked > 0 ? (withinTolerance / totalChecked) : 0;
-    
-    if (successRate >= 0.60) {
-        exerciseCompleted = true;
-        isDrawing = false;
-        showFeedback("🎉 Отлично! Ты справился!", "success");
-        document.getElementById("next-level-btn").classList.remove("hidden");
-        setTimeout(() => nextExercise(), 1500);
-    } else {
-        isDrawing = false;
-        showFeedback("⚠️ Попробуй еще раз, соблюдай волну!", "error");
-        setTimeout(() => {
-            clearCanvas();
-            drawExerciseTemplate(currentExercise);
-            userPath = [];
-        }, 1500);
-    }
+    totalChecked++;
+  }
+
+  const successRate = totalChecked > 0 ? withinTolerance / totalChecked : 0;
+
+  if (successRate >= 0.6) {
+    exerciseCompleted = true;
+    isDrawing = false;
+    showFeedback("🎉 Отлично! Ты справился!", "success");
+    document.getElementById("next-level-btn").classList.remove("hidden");
+    setTimeout(() => nextExercise(), 1500);
+  } else {
+    isDrawing = false;
+    showFeedback("⚠️ Попробуй еще раз, соблюдай волну!", "error");
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userPath = [];
+    }, 1500);
+  }
+}
+
+function completeTrafficLight() {
+  if (exerciseCompleted) return;
+  if (trafficLightTimer) clearTimeout(trafficLightTimer);
+
+  if (startZoneReached && userPath.length > 80 && trafficViolations < 3) {
+    exerciseCompleted = true;
+    isDrawing = false;
+    const feedback = document.getElementById("feedback");
+    feedback.textContent =
+      trafficViolations === 0
+        ? "🎉 Идеально!"
+        : `✅ ${trafficViolations} нарушений`;
+    feedback.className = "feedback";
+    feedback.classList.remove("hidden");
+    document.getElementById("next-level-btn").classList.remove("hidden");
+    setTimeout(() => nextExercise(), 2000);
+  } else {
+    isDrawing = false;
+    exerciseCompleted = false;
+    const feedback = document.getElementById("feedback");
+    feedback.textContent = "❌ Начни от старта и веди до финиша!";
+    feedback.className = "feedback error";
+    feedback.classList.remove("hidden");
+    setTimeout(() => {
+      clearCanvas();
+      drawExerciseTemplate(currentExercise);
+      userPath = [];
+      trafficViolations = 0;
+      startZoneReached = false;
+      feedback.classList.add("hidden");
+    }, 1500);
+  }
 }
 
 // В глобальной области (после всех функций)
