@@ -63,6 +63,8 @@ let trafficLightState = "green"; // "green" или "red"
 let trafficLightTimer = null;
 let trafficViolations = 0; // Количество нарушений (движение на красный)
 let lastTrafficCheckPos = null;
+let lastRedPos = null;
+const RED_TOLERANCE = 12;
 
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
@@ -82,7 +84,7 @@ let currentInversionTask = null; // Текущее задание { display: 'up
 let inversionStartPos = null; // Точка, где пользователь начал касание
 
 // Версия файла для отладки
-const FILE_VERSION = "1.6.1b Отладка Инверсия";
+const FILE_VERSION = "1.6.2b правка Светофор";
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -405,7 +407,6 @@ function getModuleExercises(moduleNum) {
       }
     ],
     5: [
-      // В массив модуля 5 добавьте:
       {
         title: "Нарисуй фигуру",
         type: "gesture-shape",
@@ -546,14 +547,14 @@ function getModuleExercises(moduleNum) {
           [10, 2],
           [2, 14]
         ]
-      }
-    ],
-    6: [
+      },
       {
         title: "Волнистая дорожка",
         type: "sine-corridor",
         instruction: "Веди линию вниз между линиями, повторяя волну"
-      },
+      }
+    ],
+    6: [
       {
         title: "Квадратное окошко",
         type: "grid-square",
@@ -5204,6 +5205,7 @@ function startTrafficLightCycle() {
     trafficLightState = trafficLightState === "green" ? "red" : "green";
     if (trafficLightState === "red") {
       redStartTime = Date.now(); // Запоминаем момент смены сигнала
+      lastRedPos = null;
     }
     if (canvas && ctx) {
       const savedPath = [...userPath];
@@ -5225,16 +5227,18 @@ function startTrafficLightCycle() {
 
 function checkTrafficLightViolation(pos) {
   if (trafficLightState === "red" && isDrawing) {
-    // Даем 700мс на осознание и остановку
-    if (Date.now() - redStartTime < 700) return;
-
+    if (Date.now() - redStartTime < 1000) return;
+    if (lastRedPos) {
+      const dist = Math.hypot(pos.x - lastRedPos.x, pos.y - lastRedPos.y);
+      if (dist < RED_TOLERANCE) return;
+    }
+    lastRedPos = pos;
     trafficViolations++;
     const feedback = document.getElementById("feedback");
     feedback.textContent = `⚠️ Нарушение! (${trafficViolations}/3)`;
     feedback.className = "feedback error";
     feedback.classList.remove("hidden");
     vibrateDevice();
-
     ctx.strokeStyle = "#f44336";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -5243,14 +5247,12 @@ function checkTrafficLightViolation(pos) {
     ctx.moveTo(pos.x + 10, pos.y - 10);
     ctx.lineTo(pos.x - 10, pos.y + 10);
     ctx.stroke();
-
     if (trafficViolations >= 3) {
       isDrawing = false;
       exerciseCompleted = false;
       feedback.textContent = "❌ Много нарушений! Попробуй ещё раз.";
       feedback.className = "feedback error";
       feedback.classList.remove("hidden");
-
       setTimeout(() => {
         clearCanvas();
         drawExerciseTemplate(currentExercise);
@@ -5361,17 +5363,37 @@ function startDrawingTrafficLight(e) {
   e.preventDefault();
   if (exerciseCompleted) return;
   const pos = getPosition(e);
-  if (pos.y < canvas.height - 100) return;
-  startZoneReached = true;
-  isDrawing = true;
-  userPath = [pos];
-  lastTrafficCheckPos = pos;
-  trafficViolations = 0;
-  ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
-  ctx.strokeStyle = "#4fc3f7";
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
+  const roadWidth = canvas.width * 0.6;
+  const roadX = (canvas.width - roadWidth) / 2;
+  const isOnRoad =
+    pos.x > roadX &&
+    pos.x < roadX + roadWidth &&
+    pos.y > 50 &&
+    pos.y < canvas.height - 20;
+  if (!isOnRoad) return;
+
+  if (pos.y > canvas.height - 100 && !startZoneReached) {
+    startZoneReached = true;
+    isDrawing = true;
+    userPath = [pos];
+    lastTrafficCheckPos = pos;
+    trafficViolations = 0;
+    lastRedPos = null;
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    if (!trafficLightTimer) startTrafficLightCycle();
+  } else if (startZoneReached && !exerciseCompleted) {
+    isDrawing = true;
+    userPath.push(pos);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.strokeStyle = "#4fc3f7";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+  }
 }
 
 // Рисование с проверкой на запретный цвет
