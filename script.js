@@ -7278,7 +7278,7 @@ function startDrawingStarRoute(e) {
   ctx.moveTo(prevPos.x, prevPos.y);
   ctx.lineTo(pos.x, pos.y);
   ctx.strokeStyle = "#4fc3f7";
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 6;
   ctx.lineCap = "round";
   ctx.lineJoin = "round"; // Сглаживает углы при возобновлении рисования
   ctx.stroke();
@@ -7330,10 +7330,27 @@ function drawStarRouteWithCheck(pos) {
 }
 
 function drawCollectedStarFeedback(item) {
-    // Перекрашиваем звезду в зеленый
-    ctx.fillStyle = "#4caf50";
-    drawStarShape(ctx, item.x, item.y, item.r);
-    ctx.fill();
+  // Рисуем свечение (отсвет)
+  ctx.shadowColor = "#4caf50";
+  ctx.shadowBlur = 20;
+	
+  // Перекрашиваем звезду в зелёный
+  ctx.fillStyle = "#4caf50";
+  drawStarShape(ctx, item.x, item.y, item.r);
+  ctx.fill();
+
+  // Рисуем контрастную галочку
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 0;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  //ctx.moveTo(item.x - item.r * 0.4, item.y);
+  //ctx.lineTo(item.x - item.r * 0.1, item.y + item.r * 0.3);
+  //ctx.lineTo(item.x + item.r * 0.4, item.y - item.r * 0.3);
+  //ctx.stroke();
+	ctx.shadowBlur = 0;
+
+  checkStarRouteFinish();
 }
 
 function checkStarRouteFinish() {
