@@ -66,6 +66,10 @@ let lastTrafficCheckPos = null;
 let lastRedPos = null;
 const RED_TOLERANCE = 12;
 
+// Переменные для упражнения Верный маршрут
+let starRouteItems = []; // Массив фигур {type: 'star'|'trap', x, y, r}
+let starRouteCollected = 0; // Количество собранных звезд
+
 // Переменные для pattern-dots (Узор по точкам)
 let patternPoints = []; // Координаты точек сетки
 let patternReference = []; // Эталонный узор (массив пар индексов)
@@ -84,7 +88,7 @@ let currentInversionTask = null; // Текущее задание { display: 'up
 let inversionStartPos = null; // Точка, где пользователь начал касание
 
 // Версия файла для отладки
-const FILE_VERSION = "1.6.2b правка Светофор";
+const FILE_VERSION = "1.7.0b Верный маршрут";
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -729,6 +733,11 @@ function getModuleExercises(moduleNum) {
           g: 235,
           b: 59
         }
+      },
+      {
+        title: "Верный маршрут",
+        type: "star-route",
+        instruction: "Соедини все звёздочки, но не трогай ловушки!"
       }
     ]
   };
@@ -855,6 +864,10 @@ function displayExercise(exercise) {
   lastTrafficCheckPos = null;
   startZoneReached = false;
   redStartTime = 0;
+
+  // Сброс переменных для Верный маршрут
+  starRouteItems = [];
+  starRouteCollected = 0;
 
   // Сброс переменных для модуля 2
   pathPoints = [];
@@ -1123,6 +1136,10 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "inversion") {
     startDrawingInversion(e);
   }
+  // Модуль 7: Верный маршрут
+  else if (currentExercise && currentExercise.type === "star-route") {
+    startDrawingStarRoute(e);
+  }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1176,6 +1193,10 @@ function handleCanvasClick(e) {
   // Модуль 7: Инверсия
   else if (currentExercise && currentExercise.type === "inversion") {
     startDrawingInversion(e);
+  }
+  // Модуль 7: Верный маршрут
+  else if (currentExercise && currentExercise.type === "star-route") {
+    startDrawingStarRoute(e);
   }
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
@@ -1395,7 +1416,6 @@ function draw(e) {
         return;
       }
     }
-
     if (trafficLightState === "green") {
       ctx.lineTo(pos.x, pos.y);
       ctx.strokeStyle = "#4fc3f7";
@@ -1406,6 +1426,12 @@ function draw(e) {
     } else {
       checkTrafficLightViolation(pos);
     }
+    return;
+  }
+
+  // Модуль 7: Верный маршрут
+  if (currentExercise && currentExercise.type === "star-route") {
+    drawStarRouteWithCheck(pos);
     return;
   }
 
@@ -1456,6 +1482,11 @@ function stopDrawing(e) {
   if (currentExercise && currentExercise.type === "forbidden-color") {
     isDrawing = false;
     ctx.closePath();
+    return;
+  }
+  // Модуль 7: Верный маршрут
+  if (currentExercise && currentExercise.type === "star-route") {
+    checkStarRouteFinish();
     return;
   }
 
@@ -2685,6 +2716,10 @@ function drawExerciseTemplate(exercise) {
     // Модуль 7: Инверсия
     case "inversion":
       drawInversionTemplate();
+      break;
+    // Модуль 7 Верный маршрут
+    case "star-route":
+      drawStarRouteTemplate();
       break;
 
     // Другие модули
@@ -7088,6 +7123,230 @@ function resetInversion() {
   inversionStartPos = null;
 }
 
+// ============================================
+// УПРАЖНЕНИЕ: ВЕРНЫЙ МАРШРУТ (Star Route)
+// ============================================
+
+function generateStarRouteItems() {
+  starRouteItems = [];
+  const countStars = 5;
+  const countTraps = 6; // 3 круга, 3 квадрата
+  const padding = 60;
+  const minDist = 80;
+
+  // Генерируем звезды
+  for (let i = 0; i < countStars; i++) {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 100) {
+      const r = 25;
+      const x =
+        padding + r + Math.random() * (canvas.width - 2 * padding - 2 * r);
+      const y =
+        padding + r + Math.random() * (canvas.height - 2 * padding - 2 * r);
+
+      let overlap = false;
+      for (let item of starRouteItems) {
+        const dist = Math.hypot(x - item.x, y - item.y);
+        if (dist < r + item.r + minDist) overlap = true;
+      }
+      if (!overlap) {
+        starRouteItems.push({ type: "star", x, y, r, collected: false });
+        placed = true;
+      }
+      attempts++;
+    }
+  }
+
+  // Генерируем ловушки
+  const trapTypes = ["circle", "square"];
+  for (let i = 0; i < countTraps; i++) {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 100) {
+      const r = 20;
+      const x =
+        padding + r + Math.random() * (canvas.width - 2 * padding - 2 * r);
+      const y =
+        padding + r + Math.random() * (canvas.height - 2 * padding - 2 * r);
+      const type = trapTypes[i % 2]; // Чередование
+
+      let overlap = false;
+      for (let item of starRouteItems) {
+        const dist = Math.hypot(x - item.x, y - item.y);
+        if (dist < r + item.r + 40) overlap = true; // Больше отступ от ловушек
+      }
+      if (!overlap) {
+        starRouteItems.push({ type: "trap", subtype: type, x, y, r });
+        placed = true;
+      }
+      attempts++;
+    }
+  }
+}
+
+function drawStarShape(ctx, x, y, r) {
+  const innerR = r * 0.4;
+  const spikes = 5;
+  const step = Math.PI / spikes;
+  let rot = (Math.PI / 2) * 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  for (let i = 0; i < spikes; i++) {
+    let x_outer = x + Math.cos(rot) * r;
+    let y_outer = y + Math.sin(rot) * r;
+    ctx.lineTo(x_outer, y_outer);
+    rot += step;
+    let x_inner = x + Math.cos(rot) * innerR;
+    let y_inner = y + Math.sin(rot) * innerR;
+    ctx.lineTo(x_inner, y_inner);
+    rot += step;
+  }
+  ctx.lineTo(x, y - r);
+  ctx.closePath();
+}
+
+function drawStarRouteTemplate() {
+  generateStarRouteItems();
+
+  for (let item of starRouteItems) {
+    if (item.type === "star") {
+      ctx.fillStyle = item.collected ? "#4caf50" : "#FFC107";
+      drawStarShape(ctx, item.x, item.y, item.r);
+      ctx.fill();
+    } else {
+      if (item.subtype === "circle") {
+        ctx.fillStyle = "#FF5252";
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.r, 0, Math.PI * 2);
+        ctx.fill();
+        // Крестик
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(item.x - 8, item.y - 8);
+        ctx.lineTo(item.x + 8, item.y + 8);
+        ctx.moveTo(item.x + 8, item.y - 8);
+        ctx.lineTo(item.x - 8, item.y + 8);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "#2196F3";
+        ctx.fillRect(item.x - item.r, item.y - item.r, item.r * 2, item.r * 2);
+        // Крестик
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(item.x - 8, item.y - 8);
+        ctx.lineTo(item.x + 8, item.y + 8);
+        ctx.moveTo(item.x + 8, item.y - 8);
+        ctx.lineTo(item.x - 8, item.y + 8);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+// Модуль 7 Верный путь
+function startDrawingStarRoute(e) {
+  e.preventDefault();
+  if (exerciseCompleted) return;
+  const pos = getPosition(e);
+
+  // Если это первое касание, проверяем близость к звезде
+  if (userPath.length === 0) {
+    let nearStar = false;
+    for (let item of starRouteItems) {
+      if (
+        item.type === "star" &&
+        Math.hypot(pos.x - item.x, pos.y - item.y) < item.r + 30
+      ) {
+        nearStar = true;
+        break;
+      }
+    }
+    if (!nearStar) return;
+    userPath = [pos];
+  } else {
+    // При возобновлении просто фиксируем новую точку старта
+    userPath.push(pos);
+  }
+
+  isDrawing = true;
+  ctx.beginPath();
+  // Рисуем мостик от предыдущей точки к текущей, чтобы линия была сплошной
+  const prevPos = userPath.length > 1 ? userPath[userPath.length - 2] : pos;
+  ctx.moveTo(prevPos.x, prevPos.y);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.strokeStyle = "#4fc3f7";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round"; // Сглаживает углы при возобновлении рисования
+  ctx.stroke();
+}
+
+function drawStarRouteWithCheck(pos) {
+  if (!isDrawing) return;
+  userPath.push(pos);
+
+  // 1. Проверка на ловушку (Круг/Квадрат)
+  for (let item of starRouteItems) {
+    if (item.type === "trap") {
+      const dist = Math.hypot(pos.x - item.x, pos.y - item.y);
+      if (dist < item.r + 10) {
+        isDrawing = false;
+        ctx.strokeStyle = "#ff5252";
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        showFeedback("❌ Попал в ловушку!", "error");
+        vibrateDevice();
+        setTimeout(() => {
+          clearCanvas();
+          drawExerciseTemplate(currentExercise);
+          userPath = [];
+          starRouteCollected = 0;
+          starRouteItems.forEach((i) => (i.collected = false));
+        }, 1000);
+        return;
+      }
+    }
+  }
+
+  // 2. Сбор звезды
+  for (let item of starRouteItems) {
+    if (item.type === "star" && !item.collected) {
+      const dist = Math.hypot(pos.x - item.x, pos.y - item.y);
+      if (dist < item.r + 15) {
+        item.collected = true;
+        starRouteCollected++;
+        drawCollectedStarFeedback(item); // Мгновенная анимация/смена цвета
+      }
+    }
+  }
+
+  // 3. Отрисовка линии
+  ctx.strokeStyle = "#4fc3f7";
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+}
+
+function drawCollectedStarFeedback(item) {
+    // Перекрашиваем звезду в зеленый
+    ctx.fillStyle = "#4caf50";
+    drawStarShape(ctx, item.x, item.y, item.r);
+    ctx.fill();
+}
+
+function checkStarRouteFinish() {
+  if (
+    starRouteCollected >= starRouteItems.filter((i) => i.type === "star").length
+  ) {
+    exerciseCompleted = true;
+    isDrawing = false;
+    showFeedback("🎉 Маршрут пройден!", "success");
+    document.getElementById("next-level-btn").classList.remove("hidden");
+    setTimeout(() => nextExercise(), 1500);
+  }
+}
 // В глобальной области (после всех функций)
 window.appVersion = FILE_VERSION;
 window.checkVersion = logVersion;
