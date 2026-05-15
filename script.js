@@ -88,7 +88,7 @@ let currentInversionTask = null; // Текущее задание { display: 'up
 let inversionStartPos = null; // Точка, где пользователь начал касание
 
 // Версия файла для отладки
-const FILE_VERSION = "1.7.0b Верный маршрут";
+const FILE_VERSION = "1.8.0b Переключатель";
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -685,7 +685,7 @@ function getModuleExercises(moduleNum) {
         instruction:
           "Веди линию только когда зелёный свет! Когда красный — остановись"
       },
-      {
+      /*{
         title: "Найди ошибку",
         type: "find-error",
         instruction: "Найди неправильный элемент"
@@ -694,7 +694,7 @@ function getModuleExercises(moduleNum) {
         title: "Сравни узоры",
         type: "compare",
         instruction: "Выбери правильный узор"
-      },
+      },*/
       {
         title: "Запретный цвет",
         type: "forbidden-color",
