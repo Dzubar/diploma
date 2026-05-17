@@ -94,6 +94,9 @@
         <div id="instruction" class="instruction"></div>
         <div class="canvas-container">
           <canvas id="canvas"></canvas>
+<!-- ================= START: [Кнопка Переключателя на Canvas] ================= -->
+<button id="switch-btn" class="switcher-float-btn hidden" disabled onclick="handleSwitcherAction()">🔄 Смена программы</button>
+<!-- ================= END: [Кнопка Переключателя на Canvas] ================= -->
         </div>
         <div class="controls">
           <button class="control-btn" onclick="clearCanvas()">
@@ -375,10 +378,6 @@
 
     <script src="script.js"></script>
 
-		<div id="switcher-btn-container" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10;">
-  <button id="switcher-action-btn" style="padding: 15px 30px; font-size: 24px; background: #ff9800; color: white; border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer;">
-    Нажми!
-  </button>
-</div>
+		
   </body>
 </html>
