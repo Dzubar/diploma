@@ -87,8 +87,21 @@ let redStartTime = 0; // Фиксация времени включения кр
 let currentInversionTask = null; // Текущее задание { display: 'up', target: 'down' }
 let inversionStartPos = null; // Точка, где пользователь начал касание
 
+// ================= START: [Переменные и конфиг "Переключатель"] =================
+let switcherCircles = [];
+let switcherCurrentIdx = 0;
+let switcherConnections = 0;
+let switcherLocked = false;
+let switcherCurrentStyle = 0;
+const SWITCHER_STYLES = [
+  { color: "#4fc3f7", width: 5, dash: [] }, // Обычная линия
+  { color: "#ff9800", width: 5, dash: [12, 6] }, // Пунктир
+  { color: "#4caf50", width: 6, dash: [5, 5] } // Частый пунктир
+];
+// ================= END: [Переменные и конфиг "Переключатель"] =================
+
 // Версия файла для отладки
-const FILE_VERSION = "1.8.0b Переключатель";
+const FILE_VERSION = "1.8.2b Переключатель";
 
 function logVersion() {
   console.log(`📄 script.js version: ${FILE_VERSION}`);
@@ -738,7 +751,15 @@ function getModuleExercises(moduleNum) {
         title: "Верный маршрут",
         type: "star-route",
         instruction: "Соедини все звёздочки, но не трогай ловушки!"
+      },
+      // ================= START: [Конфиг "Переключатель"] =================
+      {
+        title: "Переключатель",
+        type: "switcher",
+        instruction:
+          "Соединяй кружки по 2 штуки. Когда линия остановится — нажми кнопку на поле!"
       }
+      // ================= END: [Конфиг "Переключатель"] =================
     ]
   };
 
@@ -854,6 +875,21 @@ function displayExercise(exercise) {
   exerciseCompleted = false;
   targetZone = null;
 
+  // ================= START: [Видимость кнопки Переключателя] =================
+  const switchBtn = document.getElementById("switch-btn");
+  if (currentExercise && currentExercise.type === "switcher") {
+    switchBtn.classList.remove("hidden");
+    switchBtn.classList.add("visible");
+    switchBtn.style.display = "block";
+    switchBtn.disabled = true;
+  } else {
+    switchBtn.classList.add("hidden");
+    switchBtn.classList.remove("visible");
+    switchBtn.style.display = "none";
+    switchBtn.disabled = true;
+  }
+  // ================= END: [Видимость кнопки Переключателя] =================
+
   // Очищаем таймер светофора
   if (trafficLightTimer) {
     clearTimeout(trafficLightTimer);
@@ -875,6 +911,18 @@ function displayExercise(exercise) {
   exitCount = 0;
   isOutOfBounds = false;
   finishZone = null;
+
+  // ================= START: [Сброс "Переключатель"] =================
+  if (currentExercise && currentExercise.type === "switcher") {
+    switcherCircles = [];
+    switcherCurrentIdx = 0;
+    switcherConnections = 0;
+    switcherLocked = false;
+    switcherCurrentStyle = 0;
+    const btn = document.getElementById("switch-btn");
+    if (btn) btn.disabled = true; // Кнопка всегда видна, но неактивна
+  }
+  // ================= END: [Сброс "Переключатель"] =================
 
   // Сброс для упражнения "Инверсия"
   currentInversionTask = null;
@@ -1140,6 +1188,11 @@ function handleCanvasTouch(e) {
   else if (currentExercise && currentExercise.type === "star-route") {
     startDrawingStarRoute(e);
   }
+  // ================= START: [Касание "Переключатель"] =================
+  else if (currentExercise && currentExercise.type === "switcher") {
+    startDrawingSwitcher(e);
+  }
+  // ================= END: [Касание "Переключатель"] =================
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1198,6 +1251,13 @@ function handleCanvasClick(e) {
   else if (currentExercise && currentExercise.type === "star-route") {
     startDrawingStarRoute(e);
   }
+
+  // ================= START: [Касание "Переключатель"] =================
+  else if (currentExercise && currentExercise.type === "switcher") {
+    startDrawingSwitcher(e);
+  }
+  // ================= END: [Касание "Переключатель"] =================
+
   // Модуль 7: Запретный цвет
   else if (currentExercise && currentExercise.type === "forbidden-color") {
     startDrawingForbiddenColor(e);
@@ -1434,6 +1494,13 @@ function draw(e) {
     drawStarRouteWithCheck(pos);
     return;
   }
+
+  // ================= START: [Рисование "Переключатель"] =================
+  if (currentExercise && currentExercise.type === "switcher") {
+    drawSwitcherWithCheck(pos);
+    return;
+  }
+  // ================= END: [Рисование "Переключатель"] =================
 
   // Обычное рисование для других модулей
   ctx.lineTo(pos.x, pos.y);
@@ -2721,6 +2788,11 @@ function drawExerciseTemplate(exercise) {
     case "star-route":
       drawStarRouteTemplate();
       break;
+    // ================= START: [Case Переключателя] =================
+    case "switcher":
+      drawSwitcherTemplate();
+      break;
+    // ================= END: [Case Переключателя] =================
 
     // Другие модули
     case "line":
@@ -7333,7 +7405,7 @@ function drawCollectedStarFeedback(item) {
   // Рисуем свечение (отсвет)
   ctx.shadowColor = "#4caf50";
   ctx.shadowBlur = 20;
-	
+
   // Перекрашиваем звезду в зелёный
   ctx.fillStyle = "#4caf50";
   drawStarShape(ctx, item.x, item.y, item.r);
@@ -7348,7 +7420,7 @@ function drawCollectedStarFeedback(item) {
   //ctx.lineTo(item.x - item.r * 0.1, item.y + item.r * 0.3);
   //ctx.lineTo(item.x + item.r * 0.4, item.y - item.r * 0.3);
   //ctx.stroke();
-	ctx.shadowBlur = 0;
+  ctx.shadowBlur = 0;
 
   checkStarRouteFinish();
 }
@@ -7364,6 +7436,160 @@ function checkStarRouteFinish() {
     setTimeout(() => nextExercise(), 1500);
   }
 }
+
+// ================= START: [Полная логика "Переключатель"] =================
+function drawSwitcherTemplate() {
+  switcherCircles = [];
+  const count = 6;
+  const padding = canvas.width * 0.12;
+  const usableWidth = canvas.width - padding * 2;
+  const yBase = canvas.height / 2;
+  const amplitude = canvas.height * 0.15;
+
+  for (let i = 0; i < count; i++) {
+    const x = padding + (i / (count - 1)) * usableWidth;
+    const y = i % 2 === 0 ? yBase - amplitude : yBase + amplitude;
+    switcherCircles.push({ x, y, r: 25 });
+  }
+
+  for (let i = 0; i < switcherCircles.length; i++) {
+    const c = switcherCircles[i];
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+
+    // Подсветка следующей целевой точки
+    if (i === switcherCurrentIdx + 1) {
+      ctx.fillStyle = "#e3f2fd";
+      ctx.strokeStyle = "#2196f3";
+      ctx.lineWidth = 4;
+      ctx.fill();
+      ctx.stroke();
+      // Пульсирующее кольцо-подсказка
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(33, 150, 243, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (i <= switcherCurrentIdx) {
+      ctx.fillStyle = "#4caf50"; // Пройденные/старт
+      ctx.strokeStyle = "#388e3c";
+      ctx.lineWidth = 3;
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = "#ffffff"; // Ещё не доступные
+      ctx.strokeStyle = "#bdbdbd";
+      ctx.lineWidth = 3;
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+}
+
+function startDrawingSwitcher(e) {
+  e.preventDefault();
+  if (exerciseCompleted) return;
+  if (switcherLocked) {
+    showSwitcherFeedback("⚠️ Нажми кнопку «Смена программы»!", "error");
+    return;
+  }
+  const pos = getPosition(e);
+  const target = switcherCircles[switcherCurrentIdx];
+  const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
+  if (dist > target.r + 20) return; // Начинать только от текущего кружка
+
+  isDrawing = true;
+  userPath = [pos];
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  const style = SWITCHER_STYLES[switcherCurrentStyle % SWITCHER_STYLES.length];
+  ctx.strokeStyle = style.color;
+  ctx.lineWidth = style.width;
+  ctx.setLineDash(style.dash);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
+
+function drawSwitcherWithCheck(pos) {
+  if (!isDrawing) return;
+  const target = switcherCircles[switcherCurrentIdx + 1];
+  if (!target) return;
+
+  userPath.push(pos);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+
+  const dist = Math.hypot(pos.x - target.x, pos.y - target.y);
+  if (dist <= target.r + 5) {
+    completeSwitcherConnection();
+  }
+}
+
+function completeSwitcherConnection() {
+  isDrawing = false;
+  ctx.setLineDash([]);
+  ctx.closePath();
+  switcherCurrentIdx++;
+
+  // Подсветка достигнутого кружка
+  if (switcherCurrentIdx > 0 && switcherCurrentIdx <= switcherCircles.length) {
+    const reached = switcherCircles[switcherCurrentIdx - 1];
+    ctx.fillStyle = "#4caf50";
+    ctx.beginPath();
+    ctx.arc(reached.x, reached.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Если остались точки -> блокируем рисование и активируем кнопку
+  if (switcherCurrentIdx < switcherCircles.length - 1) {
+    switcherLocked = true;
+    const btn = document.getElementById("switch-btn");
+    if (btn) btn.disabled = false;
+    showSwitcherFeedback("🔄 Остановись и нажми кнопку!", "success");
+  } else {
+    // Дошли до последней точки
+    completeSwitcherExercise();
+  }
+  drawSwitcherTemplate(); // Обновляем подсветку следующей цели
+}
+
+window.handleSwitcherAction = function () {
+  if (!switcherLocked) return;
+
+  switcherLocked = false;
+  switcherCurrentStyle++;
+
+  const btn = document.getElementById("switch-btn");
+  if (btn) {
+    btn.disabled = true; // Делаем кнопку серой до следующего отрезка
+    btn.classList.remove("visible");
+    setTimeout(() => btn.classList.add("visible"), 10); // Триггер для перерисовки CSS
+  }
+
+  showSwitcherFeedback("✅ Режим изменен! Веди к следующей точке.", "success");
+  drawSwitcherTemplate();
+};
+
+function completeSwitcherExercise() {
+  exerciseCompleted = true;
+  isDrawing = false;
+  ctx.setLineDash([]);
+  showSwitcherFeedback("🎉 Отлично! Программа выполнена!", "success");
+  document.getElementById("next-level-btn").classList.remove("hidden");
+  const btn = document.getElementById("switch-btn");
+  if (btn) btn.style.display = "none"; // Скрываем кнопку после финиша
+  setTimeout(() => nextExercise(), 2000);
+}
+
+function showSwitcherFeedback(msg, type) {
+  const fb = document.getElementById("feedback");
+  fb.textContent = msg;
+  fb.className = `feedback ${type === "error" ? "error" : ""}`;
+  fb.classList.remove("hidden");
+  setTimeout(() => fb.classList.add("hidden"), 2000);
+}
+// ================= END: [Полная логика "Переключатель"] =================
+
 // В глобальной области (после всех функций)
 window.appVersion = FILE_VERSION;
 window.checkVersion = logVersion;
